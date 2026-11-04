@@ -1,0 +1,26 @@
+# ghcr.io/porkloin/moonshine-test-headless:view: explore a run's results.tar.gz in a throwaway Grafana. Built from
+# the repository root: podman build -f view/Containerfile .
+# moonshine-otel, static, for the summary label.
+FROM docker.io/library/rust:1-alpine AS otel
+RUN apk add --no-cache musl-dev
+COPY third_party/moonshine-otel /src
+RUN cd /src && cargo build --release --locked -p moonshine-otel && strip target/release/moonshine-otel
+
+FROM docker.io/grafana/grafana:13.2.4
+USER root
+COPY --from=otel /src/target/release/moonshine-otel /usr/local/bin/moonshine-otel
+COPY --from=docker.io/prom/prometheus:v3.15.1 /bin/prometheus /usr/local/bin/prometheus
+COPY --from=docker.io/grafana/tempo:2.10.8 /tempo /usr/local/bin/tempo
+COPY view/moonshine-test-view view/moonshine-test-summary view/moonshine-test-compact /usr/local/bin/
+COPY grafana/test-runs-queries.json targets.json /usr/share/moonshine-test-view/
+COPY ["grafana/test-runs.json", "/usr/share/moonshine-test-view/dashboards/Moonshine tests/"]
+COPY third_party/moonshine-otel/observability/grafana/dashboards/Moonshine/ /usr/share/moonshine-test-view/dashboards/Moonshine/
+WORKDIR /results
+# Shares the host's network, so several viewers run at once: the script takes free 127.0.0.1 ports and prints the link.
+# The current folder read-only, as /results.
+LABEL run="podman run --rm -it --init --security-opt label=disable --network host -v \$PWD:/results:ro IMAGE"
+# A smaller copy of a bundle, next to it (the current folder writable).
+LABEL compact="podman run --rm --security-opt label=disable -v \$PWD:/results --entrypoint /usr/local/bin/moonshine-test-compact IMAGE"
+# summary.md from a bundle, on stdout.
+LABEL summary="podman run --rm --security-opt label=disable -v \$PWD:/results:ro --entrypoint /usr/local/bin/moonshine-test-summary IMAGE"
+ENTRYPOINT ["/usr/local/bin/moonshine-test-view"]

@@ -1,0 +1,6 @@
+[submodule "third_party/gamestream-test-client"]
+	path = third_party/gamestream-test-client
+	url = https://github.com/porkloin/gamestream-test-client.git
+[submodule "third_party/moonshine-otel"]
+	path = third_party/moonshine-otel
+	url = https://github.com/porkloin/moonshine-otel.git

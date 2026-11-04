@@ -1,0 +1,1342 @@
+#!/bin/bash
+# Test pixelforge, ferriscope and Moonshine code on this machine's GPU.
+#
+#   moonshine-test-headless [--moonshine REF] [--pixelforge REF] [--ferriscope REF] [options]
+#
+# REF is what to test of that project, e.g. for --pixelforge:
+#
+#   123                                   pull request 123 on hgaiser/pixelforge
+#   someone@my-branch                     a branch, tag or commit of someone's fork (someone/pixelforge)
+#   someone/repo#123, someone/repo@ref    the same on a fork with another name
+#   https://github.com/...                a link to a pull request, branch or commit
+#   ./pixelforge                          a checkout in the current folder, uncommitted changes included
+#
+# Moonshine is always built: from its REF if given, otherwise hgaiser/moonshine's default branch, with the
+# pixelforge and ferriscope REFs in place of the ones it depends on. moonshine-otel records its timing from its
+# statistics socket, in Moonshine versions that have one. Then:
+#
+#   - pixelforge's and ferriscope's GPU tests, for those given a REF;
+#   - Moonshine streams each workload of a battery to a headless Moonlight client (gamestream-test-client) in each
+#     codec the GPU encodes: the streams each workload needs (clean, with packets dropped, or clicking), for the
+#     measurements that apply to it (battery.json says which);
+#   - with --baseline, the workloads that compare builds stream from both, and their timing is compared (that needs
+#     the statistics socket in both).
+#
+# Batteries (--tier): quick (vkcube), standard (vkcube, hdrneon switching SDR/HDR, clickflash; the default) and full
+# (standard plus GravityMark). --app picks workloads instead.
+#
+# Options:
+#   --seconds N         length of each stream, and of each --baseline stream after warmup (20)
+#   --codecs LIST       comma-separated subset of h264,hevc,av1 (all the GPU encodes)
+#   --no-stream         only run the GPU tests
+#   --baseline          also build hgaiser's default branches, time streams from both builds and compare them
+#   --baseline-moonshine REF, --baseline-pixelforge REF, --baseline-ferriscope REF
+#                       compare against REF instead of hgaiser's default branch (implies --baseline)
+#   --iterations N      timed streams per codec and build, with --baseline (5)
+#   --no-traces         don't record the streams' telemetry (moonshine-otel's OTLP metrics and traces: a trace
+#                       per frame with Moonshine's and the client's spans), and so make no summary.md
+#   --chaos OPTIONS...  gamestream-test-client options for the second stream of each codec, instead of dropping
+#                       one frame in 120; everything after --chaos, so it goes last, e.g.
+#                       --chaos --loss-bursty 2:8 --no-rfi
+#   --tier NAME         the battery of workloads: quick, standard (default) or full
+#   --app NAME          a workload to run instead of a battery (repeatable): vkcube, glxgears, hdrneon,
+#                       hdrneon-cycle, clickflash, clickflash:no-vsync, or gravitymark[:ASTEROIDS] (e.g.
+#                       gravitymark:4m; 1m by default), a GPU stress test that's downloaded on first use and
+#                       installed after you accept its license
+#   --app-command CMD   also stream CMD (run by bash) as a workload, measured like vkcube; the current folder
+#                       is /results. Through runlabel CMD can't contain spaces: put a command with arguments in a
+#                       script there
+#   --battery FILE      workloads, their measurements and the tiers from FILE (e.g. /results/battery.json)
+#                       instead of the built-in battery.json
+#   --targets FILE      score against FILE's targets (this repository's targets.json is the default
+#                       and the template), e.g. /results/targets.json
+#   --hdr               stream every workload in HDR (10-bit HEVC and AV1; hdrneon switches to HDR10)
+#   --mode MODE         the stream's resolution, frame rate and bitrate: WIDTHxHEIGHT@FPS[:KBPS], or a name from
+#                       the battery's modes (1080p60, 1440p120, 4k60, 4k120, 4k240, ...), e.g. 3840x2160@120:100000.
+#                       Repeatable: the whole run streams once per mode, each with its own summary (1080p60)
+#   --decode HOW        how the client decodes: hw (VAAPI: on another GPU than Moonshine's, such as an iGPU, when
+#                       one decodes the codec, else on Moonshine's GPU), sw (software, which can't keep up with
+#                       high modes), or a render node to decode on, e.g. /dev/dri/renderD129 (hw)
+#   --client USER@HOST  stream to the test client on another machine instead of over loopback: each stream runs the
+#                       client's container there over one SSH connection (asks for the password once; the machine
+#                       needs podman and render-group access), decoding on that machine's GPU. Use the run-remote
+#                       label, which publishes Moonshine's ports
+#   --client-image IMG  the client image the remote runs (the one matching this image's client)
+#   --bitrate KBPS      bitrate for the modes that don't give one (Moonlight's default for the mode: 20000 at
+#                       1080p60, 113000 at 4k120)
+#   --accept-gravitymark-license
+#                       accept GravityMark's evaluation license without being asked, for runs without a terminal
+#   --log FILTER        log level for Moonshine, pixelforge and ferriscope: error, warn, info, debug or trace, or
+#                       per crate, e.g. pixelforge=debug,ferriscope=trace (info). At debug or trace the client
+#                       logs the protocol too.
+#   --serve             don't test: serve the Moonshine build to a real Moonlight client until Ctrl+C
+#   --strict            exit 1 when a check failed (for CI); without it, a finished run exits 0 and the
+#                       failures are in the checks
+#   -h, --help          this text
+#
+# Results go to ./moonshine-test-<time>-<refs>/ in the folder you ran it from (/results here): summary.md (for the pull request: the
+# machines, the stream and the report card, from the telemetry), logs/ (with the telemetry in logs/otlp),
+# and all of it as results.tar.gz, the bundle to attach. With more than one --mode, each
+# mode's summary.md and stream logs are in a folder named for it (1920x1080@60), and the top
+# summary.md has every mode's.
+set -euo pipefail
+
+usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; /^set -euo/d'; }
+die() { echo "moonshine-test-headless: $*" >&2; exit 2; }
+say() { printf '\n==> %s\n' "$*"; }
+
+seconds=20 codecs="" stream=1 serve=0 strict=0 log_filter=info baseline=0 iterations=5 traces=1 refs=() base_refs=() chaos=()
+apps=() tier="" app_command="" accept_gravitymark=0 hdr=0 battery=/usr/share/moonshine-test-headless/battery.json
+targets=/usr/share/moonshine-test-headless/targets.json
+mode_args=() default_kbps="" decode=hw remote=""
+# The client image built from the same client as this image's own, when the image says.
+client_image=$(cat /usr/share/moonshine-test-headless/client-image 2>/dev/null || echo ghcr.io/porkloin/gamestream-test-client:latest)
+while [ $# -gt 0 ]; do
+	case $1 in
+	--seconds) seconds=${2:?--seconds needs a number}; shift 2 ;;
+	--codecs) codecs=${2:?--codecs needs a list}; shift 2 ;;
+	--no-stream) stream=0; shift ;;
+	--baseline) baseline=1; shift ;;
+	--moonshine | --pixelforge | --ferriscope) refs+=("${1#--}=${2:?$1 needs a ref}"); shift 2 ;;
+	--baseline-moonshine | --baseline-pixelforge | --baseline-ferriscope)
+		base_refs+=("${1#--baseline-}=${2:?$1 needs a ref}"); baseline=1; shift 2 ;;
+	--iterations) iterations=${2:?--iterations needs a number}; shift 2 ;;
+	--traces) traces=1; shift ;;
+	--no-traces) traces=0; shift ;;
+	--chaos) shift; [ $# -gt 0 ] || die "--chaos needs client options after it"; chaos=("$@"); break ;;
+	--app) apps+=("${2:?--app needs a name}"); shift 2 ;;
+	--tier) tier=${2:?--tier needs a name}; shift 2 ;;
+	--battery) battery=${2:?--battery needs a file}; shift 2 ;;
+	--targets) targets=${2:?--targets needs a file}; shift 2 ;;
+	--app-command) app_command=${2:?--app-command needs a command}; shift 2 ;;
+	--accept-gravitymark-license) accept_gravitymark=1; shift ;;
+	--hdr) hdr=1; shift ;;
+	--mode) mode_args+=("${2:?--mode needs a mode}"); shift 2 ;;
+	--decode) decode=${2:?--decode needs hw, sw or a render node}; shift 2 ;;
+	--client) remote=${2:?--client needs USER@HOST}; shift 2 ;;
+	--client-image) client_image=${2:?--client-image needs an image}; shift 2 ;;
+	--bitrate) default_kbps=${2:?--bitrate needs a number}; [[ $default_kbps =~ ^[0-9]+$ ]] || die "--bitrate is in kb/s, e.g. 50000"; shift 2 ;;
+	--log) log_filter=${2:?--log needs a filter}; shift 2 ;;
+	--strict) strict=1; shift ;;
+	--serve) serve=1; shift ;;
+	-h | --help) usage; exit 0 ;;
+	-*) die "unknown option $1 (see --help)" ;;
+	*) die "what's '$1'? Say which project, e.g. --pixelforge $1 (see --help)" ;;
+	esac
+done
+[ ${#refs[@]} -gt 0 ] || [ $serve = 1 ] || { usage; exit 2; }
+[ $serve = 0 ] || baseline=0
+
+# --- What to test ----------------------------------------------------------------------------------------------
+
+# Keyed by SIDE/PROJECT, SIDE being "test" (the refs given) or "base" (the baseline).
+declare -A owner repo kind value label commit dir
+projects=()
+
+# parse_ref SIDE PROJECT=REF: fill in the arrays for PROJECT's REF.
+parse_ref() {
+	local side=$1 p=${2%%=*} r=${2#*=} o n k v
+	r=${r%/}; r=${r#https://}; r=${r#http://}; r=${r#github.com/}
+	[[ $r != ./* ]] || r=/results/${r#./}
+	# Short forms: a pull request number on hgaiser's repository, or OWNER@REF / OWNER#N on a fork of the same name.
+	if [[ $r =~ ^#?([0-9]+)$ ]]; then r=hgaiser/$p#${BASH_REMATCH[1]}
+	elif [[ $r =~ ^([^/@#]+)([@#].+)$ ]]; then r=${BASH_REMATCH[1]}/$p${BASH_REMATCH[2]}
+	fi
+	if [[ $r == /* ]]; then
+		# A checkout on this machine (./NAME is in the current folder, /results here).
+		[ -e "$r/.git" ] || die "'${2#*=}' isn't a git checkout"
+		o=local k=local v=$r n=$(basename "$r")
+	elif [[ $r =~ ^([^/]+)/([^/#@]+)/pull/([0-9]+) ]]; then
+		o=${BASH_REMATCH[1]} n=${BASH_REMATCH[2]} k=pull v=${BASH_REMATCH[3]}
+	elif [[ $r =~ ^([^/]+)/([^/#@]+)/(tree|commit)/(.+)$ ]]; then
+		o=${BASH_REMATCH[1]} n=${BASH_REMATCH[2]} k=ref v=${BASH_REMATCH[4]}
+	elif [[ $r =~ ^([^/]+)/([^/#@]+)#([0-9]+)$ ]]; then
+		o=${BASH_REMATCH[1]} n=${BASH_REMATCH[2]} k=pull v=${BASH_REMATCH[3]}
+	elif [[ $r =~ ^([^/]+)/([^/#@]+)@(.+)$ ]]; then
+		o=${BASH_REMATCH[1]} n=${BASH_REMATCH[2]} k=ref v=${BASH_REMATCH[3]}
+	elif [[ $r =~ ^([^/]+)/([^/#@]+)$ ]]; then
+		o=${BASH_REMATCH[1]} n=${BASH_REMATCH[2]} k=default v=""
+	else
+		die "can't read '${2#*=}' as a $p ref (see --help)"
+	fi
+	n=${n%.git}
+	[ -z "${owner[$side/$p]:-}" ] || die "two refs for $p"
+	set_ref "$side" "$p" "$o" "$n" "$k" "$v"
+	if [ "$side" = test ]; then projects+=("$p"); fi
+}
+
+# set_ref SIDE PROJECT OWNER REPO KIND VALUE
+set_ref() {
+	local key=$1/$2
+	owner[$key]=$3 repo[$key]=$4 kind[$key]=$5 value[$key]=$6
+	case $5 in
+	pull) label[$key]="#$6" ;;
+	ref) label[$key]=$6 ;;
+	default) label[$key]="default branch" ;;
+	local) label[$key]="checkout $6" ;;
+	esac
+}
+
+for r in "${refs[@]}"; do parse_ref test "$r"; done
+if [ -z "${owner[test/moonshine]:-}" ]; then
+	set_ref test moonshine hgaiser moonshine default ""
+	projects+=(moonshine)
+fi
+sides=(test)
+if [ $baseline = 1 ]; then
+	sides+=(base)
+	for r in "${base_refs[@]}"; do parse_ref base "$r"; done
+	for p in pixelforge ferriscope; do
+		if [ -n "${owner[base/$p]:-}" ] && [ -z "${owner[test/$p]:-}" ]; then
+			die "--baseline-$p, but no --$p to compare it with"
+		fi
+	done
+	for p in "${projects[@]}"; do
+		[ -n "${owner[base/$p]:-}" ] || set_ref base "$p" hgaiser "$p" default ""
+	done
+fi
+
+# --- Results ---------------------------------------------------------------------------------------------------
+
+[ -d /results ] || die "/results isn't mounted: start it with 'podman container runlabel run ...'"
+slug=""
+for p in "${projects[@]}"; do
+	case ${kind[test/$p]} in
+	default) slug+=-$p ;;
+	local) slug+=-$p-local ;;
+	*) slug+=-$p-$(printf %s "${label[test/$p]#\#}" | cut -c1-12 | tr -c 'A-Za-z0-9.\n' -) ;;
+	esac
+done
+out=/results/moonshine-test-$(date -u +%Y%m%d-%H%M%S)$slug
+logs=$out/logs
+mkdir -p "$logs"
+exec > >(tee -a "$logs/run.log") 2>&1
+
+rows=()      # "name|result|notes"
+failed=0
+row() {
+	rows+=("$1|$2|$3")
+	[ "$2" != FAIL ] || failed=1
+	printf '    %-30s %s  %s\n' "$1" "$2" "$3"
+}
+
+server_pid="" watcher_pid="" sessions=0
+stop_server() {
+	local pid
+	# moonshine-otel first: it writes the result of a stream it was still recording.
+	for pid in "$watcher_pid" "$server_pid"; do
+		[ -n "$pid" ] || continue
+		kill "$pid" 2>/dev/null || true
+		wait "$pid" 2>/dev/null || true
+	done
+	server_pid="" watcher_pid=""
+}
+
+# checks_md: the checks (builds, GPU tests, streams) as a Markdown table.
+checks_md() {
+	local r name result notes
+	echo "**Checks**"
+	echo
+	echo "| Check | Result | Notes |"
+	echo "|---|---|---|"
+	for r in "${rows[@]}"; do
+		IFS='|' read -r name result notes <<< "$r"
+		echo "| $name | $result | $notes |"
+	done
+}
+
+# The mode being streamed: its size, frame rate and bitrate, where its results go (mout, with its stream logs in
+# mlogs), and its working files (mwork). Before the first mode, and with a single mode, mout is the run's folder.
+# run_name: the mode's run on its metrics, once run_info has named it.
+run_name=""
+mw="" mh="" mfps="" mkbps="" mkbps_from="" mlabel="" mout=$out mlogs=$logs mwork=/work mode_open=0 modes_done=0
+modes=()
+
+# finish_mode: the mode's summary.md: moonshine-otel summary reads the mode's run back from the
+# telemetry, with the checks after its report card; without telemetry, the checks alone.
+finish_mode() {
+	mode_open=0
+	checks_md > "$mwork/checks.md"
+	if [ $traces = 1 ] && [ -d /work/spool ]; then mkdir -p "$logs/otlp" && { cp -r --update=none /work/spool/. "$logs/otlp/" || true; }; fi
+	if [ -n "${otel:-}" ] && [ -n "$run_name" ] &&
+		"$otel" summary "$logs/otlp" --run "$run_name" --notes "$mwork/checks.md" --out "$mout/summary.md" \
+			--queries /usr/share/moonshine-test-headless/test-runs-queries.json --targets "$targets" \
+			--prometheus /usr/local/bin/prometheus > "$mlogs/summary.log" 2>&1; then
+		:
+	else
+		{
+			echo "### Moonshine test: ${code_id[test]:-}"
+			echo
+			if [ $traces = 0 ]; then echo "Run with --no-traces, so this has the checks only."
+			elif [ -z "${otel:-}" ]; then echo "moonshine-otel didn't build (logs/moonshine-otel-build.log), so this has the checks only."
+			elif [ -z "$run_name" ]; then echo "No stream was recorded, so this has the checks only."
+			else echo "The summary didn't come out of the telemetry (${mlogs#"$out"/}/summary.log), so this has the checks only."; fi
+			echo
+			cat "$mwork/checks.md"
+		} > "$mout/summary.md"
+	fi
+	modes_done=$((modes_done + 1))
+}
+
+cleanup() {
+	stop_server
+	[ -z "${clock_pid:-}" ] || kill "$clock_pid" 2>/dev/null || true
+	[ -z "${remote:-}" ] || ssh "${ssh_opts[@]}" -O exit "$remote" 2>/dev/null || true
+	if [ $mode_open = 1 ] || [ $modes_done = 0 ]; then finish_mode; fi
+	# With several modes, the top summary.md has each mode's in turn.
+	if [ ${#modes[@]} -gt 1 ]; then
+		local m
+		for m in "${modes[@]}"; do
+			mode_parts "$m"
+			[ ! -s "$out/$(mode_dir)/summary.md" ] || { cat "$out/$(mode_dir)/summary.md"; echo; }
+		done > "$out/summary.md"
+	fi
+	(cd "$out" && tar -czf results.tar.gz --exclude=results.tar.gz -- *)
+	local dir
+	dir=$(basename "$out")
+	echo
+	echo "Results: $dir/ (where you ran this)"
+	echo "  $dir/summary.md       the summary, for the pull request"
+	echo "  $dir/results.tar.gz   everything, with the telemetry the summary is made from"
+	echo
+	echo "To add them to a pull request: paste summary.md into the description or a comment, then drag"
+	echo "results.tar.gz into the same comment box (GitHub attaches .gz files) so others can look at the run."
+	echo
+	if [ "$(stat -c %s "$out/results.tar.gz")" -gt 25000000 ]; then
+		echo "results.tar.gz is over GitHub's 25 MB limit; this makes $dir/results-compact.tar.gz to attach instead:"
+		echo "  podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view $dir/results.tar.gz"
+		echo
+	fi
+	echo "To explore it in Grafana (anyone with the file can):"
+	echo "  podman container runlabel run ghcr.io/porkloin/moonshine-test-headless:view $dir/results.tar.gz"
+}
+trap cleanup EXIT
+
+# --- The machine -----------------------------------------------------------------------------------------------
+
+say "GPU"
+if ! vulkaninfo --summary > "$logs/vulkaninfo.txt" 2>&1; then
+	row "Vulkan" FAIL "vulkaninfo failed; see logs/vulkaninfo.txt"
+	die "no Vulkan device: is the GPU passed in (--device /dev/dri, or the run-nvidia label)?"
+fi
+# The first GPU that isn't a software renderer.
+gpu=$(awk '/deviceName/ {sub(/.*= /, ""); print}' "$logs/vulkaninfo.txt" | grep -v -m1 llvmpipe || true)
+driver=$(awk -v gpu="$gpu" '/deviceName/ {sub(/.*= /, ""); cur=$0} /driverName|driverInfo/ && cur==gpu {sub(/.*= /, ""); d=d (d?" ":"") $0} END {print d}' "$logs/vulkaninfo.txt")
+echo "    $gpu ($driver)"
+# Its PCI ids, to tell its render node from other GPUs' (vendorID and deviceID come before deviceName).
+gpu_pci=$(awk -v gpu="$gpu" '/vendorID/ {v=$NF} /deviceID/ {d=$NF} /deviceName/ {sub(/.*= /, ""); if ($0 == gpu) {printf "%04x:%04x", strtonum(v), strtonum(d); exit}}' "$logs/vulkaninfo.txt")
+
+# The host, described by the client's probe from the host's /sys and os-release the run labels mount (the
+# container's own show only its namespace). Without them (run without a label), the container's.
+host_sysfs=/run/host-sys host_os_release=/run/host-os-release
+[ -d "$host_sysfs/class" ] || host_sysfs=/sys
+[ -f "$host_os_release" ] || host_os_release=/etc/os-release
+host_machine=$(gamestream-test-client probe --sysfs "$host_sysfs" --os-release "$host_os_release" 2> "$logs/host-probe.log") ||
+	host_machine="{}"
+
+# --- Client decoding -------------------------------------------------------------------------------------------
+
+host_addr=127.0.0.1 client_where=loopback client_rtt=""
+# Moonshine's ports, Sunshine's layout around the HTTP port: HTTPS -5, video +9, control +10, audio +11, RTSP +21.
+# Over loopback the container's own; to a remote client they're published on this machine, so they move off the
+# defaults a Moonshine already running here would hold (the run-remote label publishes these).
+base_port=47989
+[ -z "$remote" ] || base_port=57989
+
+# One SSH connection to the remote client for the whole run: the first asks for the password (or uses a key), and
+# every command after rides it without asking, so a dropped connection fails instead of prompting mid-run.
+ssh_opts=(-o ControlMaster=auto -o ControlPath=/tmp/mth-ssh-%C -o ControlPersist=yes -o ConnectTimeout=10
+	-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/cache/ssh/known_hosts)
+# rsh COMMAND: run COMMAND (one shell string) on the remote client machine, in sh: it goes in on stdin, so the login
+# shell there (fish, zsh, ...) only ever runs `sh -s`.
+# Its stderr goes to logs/remote.log: login scripts there may print noise (tput without a terminal) on every command.
+rsh() { ssh "${ssh_opts[@]}" -o BatchMode=yes "$remote" sh -s 2>> "$logs/remote.log" <<< "$1"; }
+remote_out='~/.cache/mth-client/out'
+
+if [ -n "$remote" ]; then
+	say "Remote client $remote"
+	mkdir -p /cache/ssh
+	# ssh asks for the password on the terminal itself; its stderr (login-script noise) goes to the log.
+	ssh "${ssh_opts[@]}" "$remote" true 2>> "$logs/remote.log" ||
+		die "can't ssh to $remote (it asks for the password on this terminal, so run it interactively)"
+	# The address the client reached this machine from is the one it streams from.
+	host_addr=$(rsh 'echo $SSH_CONNECTION' | awk '{print $1}')
+	rsh 'command -v podman' > /dev/null || die "$remote has no podman; install it there (it runs the client's container)"
+	rsh 'for n in /dev/dri/renderD*; do [ -r "$n" ] && [ -w "$n" ] && exit 0; done; exit 1' ||
+		echo "    $remote can't use its GPU (add the user to the render group: sudo usermod -aG render \$USER, then log in again); decoding in software"
+	# The client image: pulled there, or already there (a local build loaded with podman load).
+	rsh "podman pull -q $client_image || podman image exists $client_image" >> "$logs/remote.log" 2>&1 ||
+		die "$remote couldn't pull $client_image (logs/remote.log)"
+	# The client machine, its link and GPUs, from its probe (in its image, seeing the machine's network, hostname,
+	# GPUs and OS).
+	client_machine=$(rsh "podman run --rm --network host --uts=host --device /dev/dri --group-add keep-groups \
+-v /etc/os-release:/run/host-os-release:ro $client_image probe --os-release /run/host-os-release") ||
+		die "$remote couldn't run the client's probe (logs/remote.log)"
+	client_rtt=$(rsh "ping -c 10 -i 0.2 -q $host_addr 2>/dev/null" | sed -n 's:.*= [0-9.]*/\([0-9.]*\)/.*:\1:p')
+	client_where=remote
+	echo "    $(jq -r '[.hostname, .model, .cpu] | map(select(. != "")) | join(", ")' <<< "$client_machine"), streaming from $host_addr, RTT ${client_rtt:-unknown} ms"
+fi
+
+# Over loopback the client is this container: its probe is the client's machine.
+[ -n "$remote" ] || client_machine=$(gamestream-test-client probe 2> "$logs/client-probe.log") || client_machine="{}"
+jq -r '.gpus[] | "    \(.device): \(.name)" + (if .va_driver == "" then ", no VAAPI" else ", VAAPI \(.va_driver), decodes \(.decodes | join(" "))" end)' \
+	<<< "$client_machine" 2>/dev/null || true
+
+# How the client decodes: it picks the VAAPI device itself (one that decodes the codec, another than Moonshine's GPU
+# over loopback, the most video memory), or software when none can; --decode sw or a render node overrides.
+case $decode in
+hw) dec_args=(--decode hw); [ -n "$remote" ] || [ -z "$gpu_pci" ] || dec_args+=(--avoid-gpu "$gpu_pci") ;;
+sw) dec_args=(--decode full) ;;
+/dev/*) dec_args=(--decode hw --decode-device "$decode") ;;
+*) die "--decode $decode: hw, sw or a render node" ;;
+esac
+
+# --- Workload --------------------------------------------------------------------------------------------------
+
+# GravityMark: Tellusim's GPU stress test, proprietary and free for evaluation and testing. Its license doesn't allow
+# redistributing it, so it isn't in the image: it's downloaded here, on the machine it runs on, and Tellusim's
+# installer shows its license and asks the person running this to accept it, once per cache volume.
+gravitymark_version=1.89
+gravitymark_sha256=de090c7b9e40f10f225d9393f2cf73a660ad4edc21f6b333eea3190a8722e005
+gravitymark_dir=/cache/apps/gravitymark-$gravitymark_version
+
+install_gravitymark() {
+	[ -x "$gravitymark_dir/bin/GravityMark.x64" ] && return 0
+	local installer=/cache/apps/GravityMark_$gravitymark_version.run
+	mkdir -p /cache/apps
+	if ! echo "$gravitymark_sha256  $installer" | sha256sum -c --quiet >/dev/null 2>&1; then
+		say "Downloading GravityMark $gravitymark_version"
+		curl -fL --progress-bar -o "$installer.part" "https://tellusim.com/download/GravityMark_$gravitymark_version.run" ||
+			die "GravityMark didn't download"
+		echo "$gravitymark_sha256  $installer.part" | sha256sum -c --quiet || die "GravityMark's download doesn't match its checksum"
+		mv "$installer.part" "$installer"
+	fi
+	if [ $accept_gravitymark = 0 ]; then
+		# The license text Tellusim's installer shows; asked here, with a time limit, so a run without anyone at
+		# the terminal stops instead of waiting forever.
+		say "GravityMark's license"
+		LC_ALL=C awk '/^licensetxt="/ {f = 1} f {print} f && /"$/ {exit}' "$installer" |
+			sed '1s/^licensetxt="//; $s/"$//' | fold -s -w 118
+		local answer=""
+		read -r -t 600 -p $'\nType y to accept GravityMark\'s license and install it: ' answer || true
+		[ "$answer" = y ] ||
+			die "GravityMark's license wasn't accepted (without a terminal, add --accept-gravitymark-license to accept it)"
+	fi
+	say "Installing GravityMark"
+	rm -rf "$gravitymark_dir"
+	echo y | sh "$installer" --noexec --nox11 --target "$gravitymark_dir" > "$logs/gravitymark-install.log" 2>&1 || true
+	[ -x "$gravitymark_dir/bin/GravityMark.x64" ] || { rm -rf "$gravitymark_dir"; die "GravityMark wasn't installed (license not accepted?)"; }
+}
+
+# The workloads: from --app and --app-command, or the battery's tier. Each has an id (also its Moonshine app's
+# title), a title, the command run in the stream's session, whether it streams in HDR, the streams it needs (clean,
+# loss, click), the measurements that apply to it and whether it streams for the baseline comparison.
+[ -r "$battery" ] || die "can't read the battery file $battery"
+[ -z "$targets" ] || jq -e '.metrics' "$targets" > /dev/null 2>&1 || die "$targets isn't a targets file (needs metrics)"
+jq -e '.workloads and .tiers' "$battery" > /dev/null 2>&1 || die "$battery isn't a battery (needs workloads and tiers)"
+if [ ${#apps[@]} -eq 0 ] && [ -z "$app_command" ]; then
+	tier=${tier:-standard}
+	mapfile -t apps < <(jq -r --arg t "$tier" '.tiers[$t][]?' "$battery")
+	[ ${#apps[@]} -gt 0 ] || die "no tier '$tier' in $battery ($(jq -r '.tiers | keys | join(", ")' "$battery"))"
+fi
+declare -A wl_log wl_title wl_load wl_warmup wl_hdr wl_streams wl_measures wl_switch wl_baseline wl_cmd
+workloads=() any_hdr=$hdr
+
+# add_workload ID JSON COMMAND...: register a workload from its battery entry (JSON) and the command it runs.
+add_workload() {
+	local id=$1 def=$2
+	shift 2
+	workloads+=("$id")
+	wl_title[$id]=$(jq -r '.title // empty' <<< "$def") wl_title[$id]=${wl_title[$id]:-$id}
+	wl_load[$id]=$(jq -r '.load // ""' <<< "$def")
+	wl_warmup[$id]=$(jq -r '.warmup_s // 0' <<< "$def")
+	wl_hdr[$id]=$(jq -r --argjson force "$hdr" 'if .hdr == true or $force == 1 then 1 else 0 end' <<< "$def")
+	wl_streams[$id]=$(jq -r '(.streams // ["clean", "loss"]) | join(" ")' <<< "$def")
+	wl_measures[$id]=$(jq -c '.measures // ["correctness", "smoothness", "server_latency", "loss_recovery", "bitrate"]' <<< "$def")
+	wl_switch[$id]=$(jq -r '.switch_every_s // empty' <<< "$def")
+	wl_baseline[$id]=$(jq -r 'if .baseline == true then 1 else 0 end' <<< "$def")
+	# With traces, a workload that logs what it sees (clickflash's inputs and flashes, hdrneon's switches) writes it
+	# where the stream's app reader follows it.
+	wl_log[$id]=$(jq -r 'if .log == true then 1 else 0 end' <<< "$def")
+	if [ $traces = 1 ] && [ "${wl_log[$id]}" = 1 ]; then set -- "$@" --log /work/app-events.jsonl; fi
+	wl_cmd[$id]=$(printf '%s\n' "$@" | jq -R . | jq -sc .)
+	[ "${wl_hdr[$id]}" = 0 ] || any_hdr=1
+}
+
+for a in "${apps[@]}"; do
+	base_id=${a%%:*}
+	# gravitymark:4m is gravitymark with 4m asteroids; clickflash:no-vsync is its own entry.
+	def=$(jq -c --arg a "$a" --arg b "$base_id" '.workloads[$a] // .workloads[$b] // empty' "$battery")
+	[ -n "$def" ] || die "unknown workload '$a': $(jq -r '.workloads | keys | join(", ")' "$battery") (or --app-command)"
+	mapfile -t cmd < <(jq -r --argjson h "$hdr" 'if $h == 1 and .command_hdr then .command_hdr[] else .command[] end' <<< "$def")
+	if [ "${cmd[0]}" = "@gravitymark" ]; then
+		asteroids=${a#gravitymark}; asteroids=${asteroids#:}; asteroids=${asteroids:-1m}
+		[[ $asteroids =~ ^[0-9]+[km]?$ ]] || die "gravitymark asteroid count looks like 200k or 4m, not '$asteroids'"
+		install_gravitymark
+		# At the stream's size, which Moonshine gives its apps.
+		cmd=(bash -c "cd $gravitymark_dir/bin && LD_LIBRARY_PATH=. exec ./GravityMark.x64 -vulkan -fullscreen 1 \
+-width \${MOONSHINE_CLIENT_WIDTH:-1920} -height \${MOONSHINE_CLIENT_HEIGHT:-1080} -vsync 0 -asteroids $asteroids \
+-nosensors 1 -fps 0 -info 0")
+		def=$(jq -c --arg t "GravityMark $gravitymark_version, $asteroids asteroids" '.title = $t' <<< "$def")
+	fi
+	[ -z "${wl_title[$a]:-}" ] || die "workload '$a' given twice"
+	add_workload "$a" "$def" "${cmd[@]}"
+done
+if [ -n "$app_command" ]; then
+	add_workload custom "$(jq -cn --arg t "custom: $app_command" '{title: $t, baseline: true}')" bash -c "$app_command"
+fi
+for w in "${workloads[@]}"; do echo "    workload: ${wl_title[$w]}"; done
+
+# --- Modes -----------------------------------------------------------------------------------------------------
+
+# moonlight_kbps WIDTH HEIGHT FPS: Moonlight's default bitrate for a mode (moonlight-qt getDefaultBitrate): a factor
+# by pixel count, interpolated between 360p (1) and 4K (40) and held there above, times the frame rate over 30,
+# growing with the square root of the frame rate above 60.
+moonlight_kbps() {
+	awk -v w="$1" -v h="$2" -v fps="$3" 'BEGIN {
+		n = split("230400 409920 921600 2073600 3686400 8294400", px, " "); split("1 2 5 10 20 40", f, " ")
+		p = w * h
+		if (p <= px[1]) r = f[1]
+		else if (p >= px[n]) r = f[n]
+		else for (i = 2; i <= n; i++) if (p <= px[i]) { r = (p - px[i-1]) / (px[i] - px[i-1]) * (f[i] - f[i-1]) + f[i-1]; break }
+		rate = (fps <= 60 ? fps : sqrt(fps / 60) * 60) / 30
+		printf "%d\n", int(r * rate + 0.5) * 1000
+	}'
+}
+
+# parse_mode MODE: a mode as "WIDTH HEIGHT FPS KBPS FROM", FROM being how the bitrate was chosen.
+parse_mode() {
+	local m=$1 named kbps="" from
+	named=$(jq -r --arg m "$m" '.modes[$m] // empty' "$battery")
+	[ -z "$named" ] || m=$named
+	if [[ $m =~ ^([0-9]+)x([0-9]+)@([0-9]+)(:([0-9]+))?$ ]]; then
+		kbps=${BASH_REMATCH[5]}
+		if [ -n "$kbps" ]; then from=given
+		elif [ -n "$default_kbps" ]; then kbps=$default_kbps from=given
+		else kbps=$(moonlight_kbps "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}") from=moonlight
+		fi
+		echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]} $kbps $from"
+	else
+		die "--mode looks like 1920x1080@60, 3840x2160@120:100000 or a name ($(jq -r '.modes // {} | keys | join(", ")' "$battery")), not '$1'"
+	fi
+}
+
+# mode_parts MODE: set mw, mh, mfps, mkbps, mkbps_from and mlabel from a parsed mode.
+mode_parts() {
+	read -r mw mh mfps mkbps mkbps_from <<< "$1"
+	mlabel="${mw}x${mh}@${mfps}"
+}
+# mode_dir: the mode's folder name. mode_text: the mode in words.
+mode_dir() { echo "${mw}x${mh}@${mfps}-${mkbps}k"; }
+mode_text() { awk -v w="$mw" -v h="$mh" -v f="$mfps" -v k="$mkbps" 'BEGIN {printf "%s×%s at %s fps, %g Mb/s\n", w, h, f, k / 1000}'; }
+
+[ ${#mode_args[@]} -gt 0 ] || mode_args=(1920x1080@60)
+for m in "${mode_args[@]}"; do pm=$(parse_mode "$m") || exit 2; modes+=("$pm"); done
+for m in "${modes[@]}"; do mode_parts "$m"; echo "    mode: $(mode_text)$( [ "$mkbps_from" = moonlight ] && echo " (Moonlight's default bitrate)")"; done
+[ "$(printf '%s\n' "${modes[@]}" | sort | uniq -d)" = "" ] || die "a mode is given twice"
+
+# --- Fetch -----------------------------------------------------------------------------------------------------
+
+export CARGO_HOME=/cache/cargo
+mkdir -p /cache/git /cache/target /work
+
+# fetch SIDE/PROJECT: check out its ref into /work/SIDE/PROJECT through a cached bare clone.
+fetch() {
+	local key=$1 url="https://github.com/${owner[$1]}/${repo[$1]}" mirror="/cache/git/${owner[$1]}/${repo[$1]}.git" rev
+	if [ "${kind[$key]}" = local ]; then
+		# Its working tree as it is, uncommitted changes included: tracked and untracked files git doesn't ignore.
+		local src=${value[$key]}
+		git config --global --add safe.directory "$src"
+		commit[$key]=$(git -C "$src" rev-parse --short=12 HEAD) || return 1
+		[ -z "$(git -C "$src" status --porcelain)" ] || commit[$key]+=-dirty
+		dir[$key]=/work/$key
+		rm -rf "${dir[$key]}" && mkdir -p "${dir[$key]}"
+		git -C "$src" ls-files -z --cached --others --exclude-standard |
+			tar -C "$src" --null -T - -cf - | tar -C "${dir[$key]}" -xf - || return 1
+		return 0
+	fi
+	[ -d "$mirror" ] || git init -q --bare "$mirror"
+	case ${kind[$key]} in
+	pull) git -C "$mirror" fetch -q "$url" "pull/${value[$key]}/head" && rev=FETCH_HEAD ;;
+	default) git -C "$mirror" fetch -q "$url" HEAD && rev=FETCH_HEAD ;;
+	ref)
+		# Branches, tags and full commit hashes fetch directly; a short hash needs everything first.
+		if git -C "$mirror" fetch -q "$url" "${value[$key]}" 2>/dev/null; then
+			rev=FETCH_HEAD
+		else
+			git -C "$mirror" fetch -q "$url" '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
+			rev=${value[$key]}
+		fi
+		;;
+	esac
+	commit[$key]=$(git -C "$mirror" rev-parse --verify "$rev^{commit}") || return 1
+	dir[$key]=/work/$key
+	mkdir -p "$(dirname "${dir[$key]}")"
+	# Forget checkouts earlier runs left in their containers.
+	git -C "$mirror" worktree prune
+	git -C "$mirror" worktree add -q --detach "${dir[$key]}" "${commit[$key]}" || return 1
+	[ ! -f "${dir[$key]}/.gitmodules" ] || git -C "${dir[$key]}" submodule update -q --init --recursive || return 1
+	commit[$key]=${commit[$key]:0:12}
+}
+
+# code_name SIDE: the code a side ran, by what was asked for: "hgaiser/moonshine#257", "someone/moonshine@a-branch",
+# "hgaiser/moonshine" (its default branch), or "local moonshine" for a checkout here.
+code_name() {
+	local key=$1/moonshine
+	case ${label[$key]:-} in
+	"checkout "*) echo "local $(basename "${label[$key]#checkout }")" ;;
+	"#"*) echo "${owner[$key]}/${repo[$key]}${label[$key]}" ;;
+	"default branch" | "") echo "${owner[$key]:-}/${repo[$key]:-}" ;;
+	*) echo "${owner[$key]}/${repo[$key]}@${label[$key]}" ;;
+	esac
+}
+
+say "Fetching"
+for side in "${sides[@]}"; do
+	for p in "${projects[@]}"; do
+		key=$side/$p
+		if fetch "$key" > "$logs/fetch-${side}-$p.log" 2>&1; then
+			echo "    $( [ "$side" = base ] && echo "baseline " )${owner[$key]}/${repo[$key]} ${label[$key]}: ${commit[$key]}"
+		else
+			row "Fetch ${owner[$key]}/${repo[$key]}" FAIL "see logs/fetch-${side}-$p.log"
+			exit 1
+		fi
+	done
+done
+# Each side's code by name, for the run's metrics (worked out here: the stream loops have a local `label`).
+declare -A code_ref code_id
+for side in "${sides[@]}"; do
+	code_ref[$side]=$(code_name "$side")
+	# What identifies a run: the commit, after what was asked for ("#257", a branch, "local").
+	case ${label[$side/moonshine]:-} in
+	"checkout "*) asked=local ;;
+	"#"*) asked=${label[$side/moonshine]} ;;
+	"default branch" | "") asked=default ;;
+	*) asked=${label[$side/moonshine]} ;;
+	esac
+	c=${commit[$side/moonshine]%-dirty}
+	code_id[$side]="$asked@${c:0:7}${commit[$side/moonshine]#"$c"}"
+done
+
+# --- Session ---------------------------------------------------------------------------------------------------
+
+# Moonshine starts apps as transient units of a systemd user manager, which needs a journal and a session bus.
+# ferriscope's tests use the same runtime directory.
+systemd-id128 new > /etc/machine-id
+install -d -m 0755 /run/systemd/system /run/systemd/journal
+install -d -m 0700 /run/user/0
+install -d -m 1777 /tmp/.X11-unix /tmp/.ICE-unix
+/usr/lib/systemd/systemd-journald > /dev/null 2>&1 &
+for _ in $(seq 50); do [ -S /run/systemd/journal/socket ] && break; sleep 0.1; done
+export XDG_RUNTIME_DIR=/run/user/0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus
+/usr/lib/systemd/systemd --user > "$logs/user-manager.log" 2>&1 &
+for _ in $(seq 100); do [ -S /run/user/0/bus ] && break; sleep 0.1; done
+[ -S /run/user/0/bus ] || { row "Session" FAIL "no session bus; see logs/user-manager.log"; exit 1; }
+
+# --- GPU tests -------------------------------------------------------------------------------------------------
+
+# gpu_tests PROJECT CARGO_TEST_ARGS...: run the project's ignored (GPU) tests and add a row.
+gpu_tests() {
+	local p=$1 logfile=$logs/$1-gpu-tests.log
+	shift
+	say "$p GPU tests"
+	local status=0
+	# Under the validation layer: its messages (VUIDs) are listed in a row of their own.
+	(cd "${dir[test/$p]}" && CARGO_TARGET_DIR=/cache/target/$p RUST_LOG=$log_filter VK_LOADER_LAYERS_ENABLE='*validation' \
+		cargo test "$@") > "$logfile" 2>&1 || status=$?
+	local passed failed_n names
+	passed=$(awk '/^test result:/ {for (i = 1; i < NF; i++) if ($(i+1) ~ /^passed/) s += $i} END {print s+0}' "$logfile")
+	failed_n=$(awk '/^test result:/ {for (i = 1; i < NF; i++) if ($(i+1) ~ /^failed/) s += $i} END {print s+0}' "$logfile")
+	# libtest lists the failed tests, indented, under the second "failures:" of each test binary.
+	names=$(awk '/^failures:$/ {n++; next} /^test result:/ {n = 0} n == 2 && /^    [^ ]+$/ {print $1}' "$logfile" |
+		sort -u | paste -sd, - | sed 's/,/, /g')
+	if [ $status = 0 ]; then
+		row "$p GPU tests" ok "$passed passed"
+	elif [ "$passed$failed_n" = 00 ]; then
+		row "$p GPU tests" FAIL "didn't build or run; see logs/$p-gpu-tests.log"
+	else
+		row "$p GPU tests" FAIL "$passed passed, $failed_n failed${names:+: $names}"
+	fi
+	# Each VUID with how often it came, and the test binaries it came from. Not a verdict: the layer can lag the
+	# extensions a driver has.
+	local vuids
+	vuids=$(grep -o 'VUID-[A-Za-z0-9_-]*' "$logfile" | sort | uniq -c | sort -rn | awk '{printf "%s%s ×%s", (NR > 1 ? ", " : ""), $2, $1}') || vuids=""
+	if [ -n "$vuids" ]; then
+		row "$p validation" messages "$vuids; from $(awk '/ Running /{b=$2} /VUID-/{print b}' "$logfile" | sort -u | paste -sd, - | sed 's/,/, /g'); see logs/$p-gpu-tests.log"
+	elif [ ! -e /usr/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json ]; then
+		row "$p validation" skipped "no validation layer in this image"
+	elif [ "$passed" != 0 ]; then
+		row "$p validation" ok "no validation layer messages"
+	fi
+}
+
+if [ $serve = 0 ]; then
+	[ -z "${dir[test/pixelforge]:-}" ] || gpu_tests pixelforge --no-fail-fast -- --ignored --test-threads=1
+	[ -z "${dir[test/ferriscope]:-}" ] || gpu_tests ferriscope -p ferriscope --no-fail-fast -- --ignored --test-threads=1
+fi
+[ $stream = 1 ] || [ $serve = 1 ] || [ $baseline = 1 ] || exit $((failed & strict))
+
+# --- Building Moonshine ----------------------------------------------------------------------------------------
+
+declare -A server
+# Log file prefix and row name for a side.
+prefix() { [ "$1" = base ] && echo "baseline-" || true; }
+what() { [ "$1" = base ] && echo "baseline Moonshine" || echo "Moonshine"; }
+
+# install_wsi SIDE: ferriscope's Vulkan WSI layer, from the ferriscope that side's Moonshine uses. It has to run
+# before the dependencies are patched: the installer wants Moonshine's Cargo.lock as committed.
+install_wsi() {
+	local m=${dir[$1/moonshine]}
+	[ -x "$m/dist/install-wsi.sh" ] || return 0
+	(cd "$m" && { [ ! -e .git ] || git checkout -q -- Cargo.lock; } && CARGO_TARGET_DIR=/cache/target/$1-wsi \
+		FERRISCOPE_SRC=${dir[$1/ferriscope]:-} dist/install-wsi.sh --prefix /usr/local) \
+		> "$logs/$(prefix "$1")wsi-build.log" 2>&1
+}
+
+# dep_patches SIDE ROW: set `patches` to cargo options that point that side's Moonshine at its pixelforge and
+# ferriscope checkouts. ROW names the check a failure is reported under.
+dep_patches() {
+	local side=$1 m=${dir[$1/moonshine]} pre p src
+	pre=$(prefix "$side")
+	patches=()
+	[ -n "${dir[$side/pixelforge]:-}${dir[$side/ferriscope]:-}" ] || return 0
+	(cd "$m" && cargo metadata --format-version 1 > "/work/$side-metadata.json" 2> "$logs/${pre}moonshine-metadata.log") ||
+		{ row "$2" FAIL "cargo metadata failed; see logs/${pre}moonshine-metadata.log"; return 1; }
+	for p in pixelforge ferriscope; do
+		[ -n "${dir[$side/$p]:-}" ] || continue
+		src=$(jq -r --arg n "$p" '.packages[] | select(.name == $n) | .source // empty' "/work/$side-metadata.json" | head -1)
+		[ -n "$src" ] || { row "$2" FAIL "Moonshine ${label[$side/moonshine]} doesn't depend on $p"; return 1; }
+		if [[ $src == git+* ]]; then src=${src#git+}; src=${src%%[?#]*}; else src=crates-io; fi
+		patches+=(--config "patch.\"$src\".$p.path=\"${dir[$side/$p]}\"")
+	done
+}
+
+# build SIDE: that side's Moonshine. Sets server[SIDE].
+build() {
+	local side=$1 m=${dir[$1/moonshine]} pre what_ logfile
+	pre=$(prefix "$side") what_=$(what "$side") logfile=$logs/$(prefix "$1")moonshine-build.log
+	say "Building $what_"
+	install_wsi "$side" || { row "Build $what_" FAIL "the WSI layer didn't build; see logs/${pre}wsi-build.log"; return 1; }
+	dep_patches "$side" "Build $what_" || return 1
+	if ! (cd "$m" && CARGO_TARGET_DIR=/cache/target/$side-moonshine cargo build --release --bin moonshine "${patches[@]}") \
+		> "$logfile" 2>&1; then
+		row "Build $what_" FAIL "see logs/${pre}moonshine-build.log"
+		return 1
+	fi
+	if grep -q "was not used in the crate graph" "$logfile"; then
+		row "Build $what_" FAIL "a pixelforge or ferriscope ref doesn't fit Moonshine ${label[$side/moonshine]} (logs/${pre}moonshine-build.log)"
+		return 1
+	fi
+	server[$side]=/cache/target/$side-moonshine/release/moonshine
+	row "Build $what_" ok ""
+}
+
+build test || exit 1
+
+# --- Serving ---------------------------------------------------------------------------------------------------
+
+socket=/run/user/0/moonshine/stats.sock watcher=""
+has_socket() { [ -f "${dir[$1/moonshine]}/src/stats_socket.rs" ]; }
+
+# write_config SIDE: that side's Moonshine config, with an app per workload (titled with its id) and nothing scanned.
+# Prints its path.
+write_config() {
+	local f=/work/$1-moonshine.toml
+	# jq quotes each argument as a JSON string, which is valid TOML.
+	cat > "$f" <<EOF
+name = "moonshine-test-headless"
+address = "0.0.0.0"
+inhibit_sleep = false
+application_scanner = []
+EOF
+	local w
+	for w in "${workloads[@]}"; do
+		printf '\n[[application]]\ntitle = %s\ncommand = %s\n' "$(jq -Rn --arg w "$w" '$w')" \
+			"$(jq -c . <<< "${wl_cmd[$w]}" | sed 's/","/", "/g')" >> "$f"
+	done
+	# HDR is offered only when the GPU has the formats and the compositor is allowed to use it.
+	[ $any_hdr = 0 ] || printf '\n[compositor]\nhdr = true\n' >> "$f"
+	[ $serve = 1 ] || ! has_socket "$1" || printf '\n[stats]\nsocket = "%s"\n' "$socket" >> "$f"
+	if [ "$base_port" != 47989 ]; then
+		cat >> "$f" <<EOF
+
+[webserver]
+port = $base_port
+port_https = $((base_port - 5))
+certificate = "\$HOME/.config/moonshine/cert.pem"
+private_key = "\$HOME/.config/moonshine/key.pem"
+
+[stream]
+port = $((base_port + 21))
+
+[stream.video]
+port = $((base_port + 9))
+
+[stream.control]
+port = $((base_port + 10))
+
+[stream.audio]
+port = $((base_port + 11))
+EOF
+	fi
+	echo "$f"
+}
+
+# moonshine-otel draws the charts, and records the streams from Moonshine's statistics socket when this Moonshine
+# has one. It only reads the socket, so one build serves every Moonshine.
+otel=""
+if [ $serve = 0 ]; then
+	say "Building moonshine-otel"
+	if (cd /usr/share/moonshine-test-headless/moonshine-otel && CARGO_TARGET_DIR=/cache/target/otel-watch \
+		cargo build --release -p moonshine-otel) > "$logs/moonshine-otel-build.log" 2>&1; then
+		otel=/cache/target/otel-watch/release/moonshine-otel
+	else
+		row "moonshine-otel" skipped "didn't build, so no server timing or charts (logs/moonshine-otel-build.log)"
+	fi
+fi
+if [ $serve = 0 ] && has_socket test; then
+	watcher=$otel
+elif [ $serve = 0 ]; then
+	row "Host timing" skipped "Moonshine ${label[test/moonshine]} has no statistics socket"
+	[ $any_hdr = 0 ] || row "HDR" skipped "not verified: without the statistics socket, nothing confirms the streams were HDR"
+fi
+export_args=(--no-export)
+# With traces, metrics go out every second, so a stream's timeline has a point a second.
+[ $traces = 0 ] || export_args=(--otlp-spool /work/spool --metric-interval 1)
+# With traces, every frame is a trace of its own that Moonshine's side and the client's both add to: each stream
+# gets a key (written here for moonshine-otel watch, passed to the client's reader), and the frame's number
+# does the rest.
+watch_args=()
+[ $traces = 0 ] || watch_args=(--stream-key-file /work/stream-key --trace-mode all)
+# The client times its frames on its own machine; with traces it measures this machine's clock (the one Moonshine
+# stamps frames with) by NTP from clock-serve here, before and after each stream, and gives its times on it. Nothing
+# sets either machine's clock.
+clock_port=$((base_port + 22))
+clock_pid=""
+if [ $traces = 1 ] && [ $serve = 0 ]; then
+	gamestream-test-client clock-serve --port "$clock_port" >> "$logs/clock-serve.log" 2>&1 &
+	clock_pid=$!
+fi
+
+# start_server SIDE RESULTS_DIR: start that side's Moonshine, and moonshine-otel recording its streams into
+# RESULTS_DIR. Sets serverinfo.
+start_server() {
+	local side=$1 config pre
+	pre=$(prefix "$side")
+	config=$(write_config "$side")
+	say "Starting $(what "$side")"
+	mkdir -p "$2" /work/spool
+	MOONSHINE_LOG=$log_filter "${server[$side]}" "$config" >> "$logs/${pre}moonshine.log" 2>&1 &
+	server_pid=$! server_side=$side server_dir=$2 sessions=0
+	serverinfo=""
+	for _ in $(seq 60); do
+		serverinfo=$(curl -sf http://127.0.0.1:$base_port/serverinfo) && break
+		kill -0 "$server_pid" 2>/dev/null || break
+		sleep 1
+	done
+	[ -n "$serverinfo" ] || { row "Start $(what "$side")" FAIL "see logs/${pre}moonshine.log"; return 1; }
+	if [ -n "$watcher" ] && has_socket "$side"; then
+		"$watcher" watch --socket "$socket" --results-dir "$2" "${export_args[@]}" "${watch_args[@]}" \
+			>> "$logs/${pre}moonshine-otel.log" 2>&1 &
+		watcher_pid=$!
+	fi
+}
+
+# The moonshine-otel spool deletes its own files after 10 minutes; keep copies as they appear. --update=none
+# skips files already copied without failing (cp -n fails on them), and a file the spool deletes mid-copy
+# mustn't end the loop.
+if [ $traces = 1 ]; then
+	mkdir -p "$logs/otlp"
+	(while sleep 15; do cp -r --update=none /work/spool/. "$logs/otlp/" 2>/dev/null || true; done) &
+fi
+
+if [ $serve = 1 ]; then
+	start_server test /work/server || exit 1
+	echo
+	echo "Moonshine is serving the workloads as apps: ${workloads[*]}. In Moonlight, add this machine by its address, then type the PIN"
+	echo "Moonlight shows here. Ctrl+C stops."
+	while read -rp "PIN: " pin; do
+		# Moonlight pairs with this fixed unique id.
+		curl -sS -X POST http://127.0.0.1:$base_port/submit-pin -d "uniqueid=0123456789ABCDEF&pin=$pin" && echo
+	done
+	exit 0
+fi
+
+# ServerCodecModeSupport bits; HDR needs the codec's 10-bit (Main10) profile, which H.264 doesn't have here.
+declare -A sdr_bit=([h264]=1 [hevc]=256 [av1]=65536) hdr_bit=([h264]=0 [hevc]=512 [av1]=131072) noted
+list=${codecs//,/ }
+for codec in $list; do [ -n "${sdr_bit[$codec]+set}" ] || die "unknown codec $codec"; done
+
+# offered_codecs HDR: set `offered` to the codecs to stream in that dynamic range (1 for HDR), and note the ones
+# skipped, once each.
+offered_codecs() {
+	local codec want=$1 range="" b
+	[ "$want" = 0 ] || range=" HDR"
+	offered=()
+	for codec in ${list:-h264 hevc av1}; do
+		if [ "$want" = 1 ]; then b=${hdr_bit[$codec]}; else b=${sdr_bit[$codec]}; fi
+		if (( (supported & b) != 0 )); then
+			offered+=("$codec")
+		elif [ -z "${noted[$codec$range]:-}" ]; then
+			noted[$codec$range]=1
+			if [ "$want" = 1 ] && [ "$codec" = h264 ]; then
+				row "h264$range streams" skipped "HDR streams are HEVC or AV1"
+			else
+				row "$codec$range streams" skipped "Moonshine doesn't offer $codec$range on this GPU"
+			fi
+		fi
+	done
+}
+
+# --- Streams ---------------------------------------------------------------------------------------------------
+
+verbose=()
+[[ ! $log_filter =~ debug|trace ]] || verbose=(--verbose)
+# client ARGS...: the test client; a stream is in the current mode.
+# A session's Wayland socket stays taken until Moonshine exits, and there are 32 (wayland-1 to wayland-32), so
+# Moonshine starts again before it runs out.
+max_sessions=30
+client() {
+	if [ "$1" = stream ]; then
+		local app=$2 a decoding=("${dec_args[@]}")
+		shift 2
+		# A stream that sets its own decoding (bench streams: --decode none) keeps it.
+		for a in "$@"; do [ "$a" != --decode ] || decoding=(); done
+		set -- stream "$app" --mode "${mw}x${mh}x${mfps}" --bitrate "$mkbps" "${decoding[@]}" "$@"
+		if [ $traces = 1 ] && [ -n "$otel" ]; then
+			traced "$@"
+			return
+		fi
+	fi
+	# Here, not above: a traced stream comes through twice, and this is its second, untraced pass.
+	if [ "$1" = stream ] && [ -n "$server_pid" ]; then
+		if [ "$sessions" -ge $max_sessions ]; then
+			stop_server
+			start_server "$server_side" "$server_dir" > /dev/null || return 1
+			client list > /dev/null 2>&1 || pair_client > /dev/null || return 1
+		fi
+		sessions=$((sessions + 1))
+	fi
+	if [ -z "$remote" ]; then
+		gamestream-test-client --keys /work/keys --host 127.0.0.1 --port "$base_port" "${verbose[@]}" "$@"
+		return
+	fi
+	# On the remote: its files go to $remote_out and come back here afterwards; its pairing keys stay in a volume.
+	local a prev="" args=() fetch=() status=0 f
+	for a in "$@"; do
+		case $prev in --json | --csv | --dump | --stats) fetch+=("$a"); a=/out/$(basename "$a") ;; esac
+		args+=("$a")
+		prev=$a
+	done
+	rsh "mkdir -p $remote_out && podman run --rm --network host --device /dev/dri --group-add keep-groups \
+-v mth-client-keys:/keys -v $remote_out:/out:Z $client_image --keys /keys --host $host_addr --port $base_port ${verbose[*]} \
+$(printf '%q ' "${args[@]}")" || status=$?
+	for f in "${fetch[@]}"; do
+		rsh "cat $remote_out/$(basename "$f") && rm -f $remote_out/$(basename "$f")" > "$f" 2>/dev/null || rm -f "$f"
+	done
+	return $status
+}
+
+# run_info: the run's name on its metrics (the code under test, its commit, then when the run started: the results
+# folder's UTC time), and the facts no measurement carries as moonshine.test.info samples: the host, the client,
+# the code and the stream's settings. Once per run, at its first traced stream.
+run_info() {
+	local b k side extra=()
+	b=$(basename "$out")
+	run_name="${code_id[test]} · ${b:4:2}-${b:6:2} ${b:9:2}:${b:11:2}Z"
+	# With several modes, each is a run of its own, for its own summary and report card.
+	[ ${#modes[@]} -le 1 ] || run_name+=" · $mlabel"
+	info() { "$otel" info --label "run=$run_name" "$@" "${export_args[@]}" >> "$logs/info.log" 2>&1; }
+	# machine JSON GPU DRIVER OTHER_GPUS: the same facts for either machine, N/A where the probe had none.
+	machine() {
+		jq -r --arg gpu "$2" --arg driver "$3" --arg other "$4" '
+			def v(x): if x == null or x == "" then "N/A" else x end;
+			[
+				"machine=" + v([.hostname, .model] | map(select(. != null and . != "")) | join(", ")),
+				"cpu=" + v(.cpu), "memory=" + v(if .memory_gb then "\(.memory_gb | floor) GB" else null end),
+				"gpu=" + v($gpu), "driver=" + v($driver), "other_gpus=" + v($other),
+				"os=" + v(.os), "kernel=" + v(.kernel),
+				"network=" + v([.network[]? | if .wifi then "Wi-Fi \(.wifi.standard), \(.wifi.tx_mbps | floor) Mb/s"
+					else (.kind // "") + (if .speed_mbps then ", \(.speed_mbps) Mb/s" else "" end) end] | join("; "))
+			] | .[] | "--label", .' <<< "$1"
+	}
+	# The host encodes on the GPU Vulkan named; the client decodes on its first GPU with VAAPI.
+	local host_other client_gpu client_driver client_other
+	host_other=$(jq -r --arg pci "$gpu_pci" '[.gpus[]? | select(.pci != $pci) | .name] | join("; ")' <<< "$host_machine")
+	mapfile -t k < <(machine "$host_machine" "$gpu" "$driver (Vulkan)" "$host_other")
+	info --label role=host "${k[@]}"
+	client_gpu=$(jq -r '[.gpus[]? | select(.va_driver != "")][0].name // ""' <<< "$client_machine")
+	client_driver=$(jq -r '[.gpus[]? | select(.va_driver != "")][0].va_driver // "" | if . != "" then . + " (VAAPI)" else . end' <<< "$client_machine")
+	client_other=$(jq -r --arg g "$client_gpu" '[.gpus[]? | select(.name != $g) | .name] | join("; ")' <<< "$client_machine")
+	mapfile -t k < <(machine "$client_machine" "$client_gpu" "$client_driver" "$client_other")
+	info --label role=client "${k[@]}"
+	# The stream: the code, the baseline, the route between the machines (never an address) and the settings.
+	local route=loopback
+	[ "$client_where" = loopback ] || { [[ $host_addr =~ ^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\. ]] && route=Tailscale || route=LAN; }
+	[ -z "$client_rtt" ] || route+=", ${client_rtt} ms round trip"
+	[ -z "${commit[base/moonshine]:-}" ] || extra+=(--label "baseline=${code_id[base]}")
+	[ -z "${tier:-}" ] || extra+=(--label "tier=$tier")
+	info --label role=run --label "code=${code_id[test]}" --label "ref=${code_ref[test]}" --label "commit=${commit[test/moonshine]}" \
+		"${extra[@]}" --label "route=$route" --label "resolution=${mw}x${mh}" --label "fps=$mfps" \
+		--label "bitrate=$(awk -v k="$mkbps" 'BEGIN {printf "%g Mb/s", k / 1000}')" --label "seconds=$seconds s"
+}
+
+# traced stream ARGS...: a stream whose frames the client adds to their traces. A fresh key goes to Moonshine's side
+# (watch reads it when the stream starts) and to the client's reader, which follows the client's statistics as they
+# come locally, or reads them once they're fetched back from a remote client.
+traced() {
+	local key stats=/work/client-stats.jsonl reader="" status=0 a prev="" kind=clean labels=()
+	# The stream's labels, from its own arguments.
+	for a in "$@"; do
+		case $prev in --codec) labels+=(--label "codec=$a") ;; --decode) [ "$a" != none ] || kind=bench ;; esac
+		case $a in --loss-* | --delay | --reorder | --duplicate | --rate) [ $kind = bench ] || kind=loss ;; --click-every) kind=click ;; esac
+		prev=$a
+	done
+	[ -n "$run_name" ] || run_info
+	# The side is the Moonshine streaming now: a global `side` is whatever an earlier loop left.
+	local on=${server_side:-test}
+	labels+=(--label "workload=$2" --label "stream=$kind" --label "run=$run_name" --label "side=$on"
+		--label "code=${code_id[$on]}" --label "ref=${code_ref[$on]}" --label "commit=${commit[$on/moonshine]:0:7}")
+	[ -z "${wl_load[$2]:-}" ] || labels+=(--label "load=${wl_load[$2]}")
+	key=$(cat /proc/sys/kernel/random/uuid)
+	echo "$key" > /work/stream-key
+	rm -f "$stats"
+	if [ -z "$remote" ]; then
+		"$otel" client "$stats" --stream-key "$key" --warmup "${wl_warmup[$2]:-0}" "${labels[@]}" "${export_args[@]}" >> "$logs/client-traces.log" 2>&1 &
+		reader=$!
+	fi
+	# The workload runs here either way; its log starts empty for each stream (the app appends to it).
+	local app_reader=""
+	if [ "${wl_log[$2]:-0}" = 1 ]; then
+		rm -f /work/app-events.jsonl
+		"$otel" app /work/app-events.jsonl --stream-key "$key" "${labels[@]}" "${export_args[@]}" >> "$logs/app-traces.log" 2>&1 &
+		app_reader=$!
+	fi
+	traces=0 client "$@" --stats "$stats" --clock "$host_addr:$clock_port" || status=$?
+	if [ -n "$app_reader" ]; then
+		kill -TERM "$app_reader" 2>/dev/null
+		wait "$app_reader" 2>/dev/null
+	fi
+	if [ -n "$reader" ]; then
+		kill -TERM "$reader" 2>/dev/null
+		wait "$reader" 2>/dev/null
+	elif [ -s "$stats" ]; then
+		"$otel" client "$stats" --stream-key "$key" --warmup "${wl_warmup[$2]:-0}" --once "${labels[@]}" "${export_args[@]}" >> "$logs/client-traces.log" 2>&1
+	fi
+	return $status
+}
+
+# client_uniqueid: the id the client pairs with.
+client_uniqueid() {
+	if [ -n "$remote" ]; then
+		rsh "podman run --rm -v mth-client-keys:/keys --entrypoint cat $client_image /keys/uniqueid.dat" 2>/dev/null
+	else
+		cat /work/keys/uniqueid.dat 2>/dev/null
+	fi
+}
+
+# gpu_busy_start FILE: record how busy the GPU is (percent, the busiest GPU's) every 200 ms into FILE as CSV, until
+# gpu_busy_stop. AMD GPUs report it in sysfs, NVIDIA through nvidia-smi; elsewhere FILE isn't written.
+busy_files=(/sys/class/drm/card*/device/gpu_busy_percent)
+sampler_pid=""
+gpu_busy_start() {
+	sampler_pid=""
+	if [ -r "${busy_files[0]}" ]; then
+		(
+			echo "ms,busy"
+			while :; do
+				b=0
+				for f in "${busy_files[@]}"; do v=$(cat "$f" 2>/dev/null || echo 0); [ "$v" -le "$b" ] || b=$v; done
+				echo "$(date +%s%3N),$b"
+				sleep 0.2
+			done
+		) > "$1" 2>/dev/null &
+		sampler_pid=$!
+	elif command -v nvidia-smi > /dev/null 2>&1; then
+		(echo "ms,busy"; nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits -lms 200 |
+			awk '{printf "%d,%d\n", NR * 200, $1; fflush()}') > "$1" 2>/dev/null &
+		sampler_pid=$!
+	fi
+}
+gpu_busy_stop() {
+	[ -n "$sampler_pid" ] || return 0
+	kill "$sampler_pid" 2>/dev/null || true
+	wait "$sampler_pid" 2>/dev/null || true
+	sampler_pid=""
+}
+
+# results DIR: how many stream results moonshine-otel has written there.
+results() { local f=("$1"/*.json); [ -e "${f[0]}" ] && echo ${#f[@]} || echo 0; }
+
+# new_result DIR BEFORE: wait for moonshine-otel to write the result of the stream that just ended (it does when
+# the session ends), and print its path.
+new_result() {
+	for _ in $(seq 30); do
+		[ "$(results "$1")" -gt "$2" ] && break
+		sleep 0.5
+	done
+	[ "$(results "$1")" -gt "$2" ] || return 1
+	ls -t "$1"/*.json | head -1
+}
+
+# pair_client: pair the test client with the running Moonshine, without a person: the client asks with PIN 0000 and
+# the script submits it on Moonshine's localhost-only endpoint.
+pair_client() {
+	say "Pairing the test client"
+	(client pair 0000 >> "$mlogs/pair.log" 2>&1) &
+	local pair_pid=$!
+	local id=""
+	for _ in $(seq 50); do id=$(client_uniqueid) && [ -n "$id" ] && break; sleep 0.2; done
+	sleep 1
+	curl -sf -X POST http://127.0.0.1:$base_port/submit-pin -d "uniqueid=$id&pin=0000" \
+		>> "$mlogs/pair.log" 2>&1 || true
+	wait $pair_pid || { row "Pair" FAIL "see logs/pair.log"; return 1; }
+}
+
+# The second stream's conditions, for its row.
+loss_label() { if [ ${#chaos[@]} -gt 0 ]; then echo "${chaos[*]}"; else echo "packet loss"; fi; }
+
+# A click every 300 ms (plus up to a frame at random) in click-to-flash streams, for at least a minute (about 190
+# clicks): clicks land anywhere within a frame, so medians from a few dozen clicks wander by milliseconds.
+click_every=300
+click_seconds=$(( seconds > 60 ? seconds : 60 ))
+
+# click_row NAME CLIENT_JSON: a click-to-flash stream's row. ok when at least nine clicks in ten flashed and every
+# picture decoded.
+click_row() {
+	local notes result=ok
+	notes=$(jq -r 'def ms: if . == null then "n/a" else (. * 10 | round / 10 | tostring) + " ms" end;
+		"click to flash median \(.click_ms_p50 | ms), p95 \(.click_ms_p95 | ms); \(.click_flashes) of \(.clicks) clicks flashed"' "$2")
+	[ "$(jq '.click_flashes > 0 and .click_missed * 10 <= .clicks and .decode_errors + .corrupt == 0' "$2")" = true ] ||
+		result=FAIL
+	row "$1" $result "$notes"
+}
+
+# stream_row NAME CLIENT_JSON [WARMUP_S]: a stream's row. ok when frames came, none failed to decode or decoded
+# corrupt, and the stream wasn't stalled most of the time. The client counts the whole stream; with a warmup, the note
+# says the report card leaves its start out.
+stream_row() {
+	local notes result=ok
+	notes=$(jq -r '(if .dropped_frames > 0 then "\(.dropped_frames) frames dropped on purpose; " elif .dropped_packets > 0 then "\(.dropped_packets) packets dropped on purpose; " else "" end) + "\(.frames) frames at \(.fps * 10 | round / 10) fps, \(.idr) keyframes, \(.recovery_frames) recovery frames, \(.decode_errors) decode errors, \(.corrupt) corrupt, \(.stalls) stalls"' "$2")
+	[ "$(jq '.frames > 0 and .decode_errors + .corrupt == 0 and .stalled_ms < .seconds * 500' "$2")" = true ] || result=FAIL
+	[ "${3:-0}" = 0 ] || notes+=" (the whole stream; the report card leaves out its first $3 s, while the workload starts)"
+	row "$1" $result "$notes"
+}
+
+# file WORKLOAD: a file-name-safe form of its id.
+file() { echo "${1//[^A-Za-z0-9.-]/_}"; }
+
+# test_streams: start Moonshine under test, then each workload's streams in each codec.
+test_streams() {
+	local w whdr range codec run label name before f args status sj sf json gb
+	start_server test "$mwork/server" || return 1
+	supported=$(sed -n 's:.*<ServerCodecModeSupport>\([0-9]*\)</ServerCodecModeSupport>.*:\1:p' <<< "$serverinfo")
+	supported=${supported:-0}
+	if [ $stream = 0 ] || [ ${#workloads[@]} -eq 0 ]; then stop_server; return 0; fi
+	if [ -n "$remote" ] && ! rsh "! command -v bash > /dev/null || timeout 5 bash -c '</dev/tcp/$host_addr/$base_port'" 2>/dev/null; then
+		row "Remote client" FAIL "$remote can't reach Moonshine at $host_addr:$base_port: open $((base_port - 5)), $base_port, $((base_port + 21))/tcp and $((base_port + 9))-$((base_port + 11))/udp to it (firewall, tailnet grant, or the run-remote label)"
+		stop_server
+		return 1
+	fi
+	client list > /dev/null 2>&1 || pair_client || { stop_server; return 1; }
+	mkdir -p "$mlogs/timing"
+	for w in "${workloads[@]}"; do
+		whdr=${wl_hdr[$w]} range=""
+		[ "$whdr" = 0 ] || range=" HDR"
+		offered_codecs "$whdr"
+		for codec in "${offered[@]}"; do
+			for run in ${wl_streams[$w]}; do
+				label="$codec$range"
+				case $run in loss) label+=", $(loss_label)" ;; click) label+=", clicks" ;; esac
+				name="${wl_title[$w]}: $label"
+				say "$name"
+				before=$(results $mwork/server)
+				f=$mlogs/$(file "$w")-$codec-$run
+				# --quit ends the session, so the next stream starts a new one in its own codec.
+				args=(stream "$w" --codec "$codec" --quit --json "$f.json" --csv "$f.csv")
+				case $run in
+				clean) args+=(--seconds "$seconds") ;;
+				loss)
+					args+=(--seconds "$seconds")
+					# By default, lose every packet of one frame every two seconds.
+					if [ ${#chaos[@]} -gt 0 ]; then args+=("${chaos[@]}"); else args+=(--loss-frame-every 120); fi
+					;;
+				click) args+=(--seconds "$click_seconds" --click-every "$click_every") ;;
+				*) die "workload $w asks for a stream '$run'; streams are clean, loss and click" ;;
+				esac
+				[ "$whdr" = 0 ] || args+=(--hdr)
+				status=0 gb=""
+				[ "$run" != clean ] || { gb=$f.gpu.csv; gpu_busy_start "$gb"; }
+				client "${args[@]}" > "$f.log" 2>&1 || status=$?
+				gpu_busy_stop
+				if [ $status != 0 ] || [ ! -s "$f.json" ]; then
+					row "$name" FAIL "the client stopped early; see logs/$(basename "$f").log"
+					continue
+				fi
+				if [ $run = click ]; then click_row "$name" "$f.json"; else stream_row "$name" "$f.json" "${wl_warmup[$w]}"; fi
+				sj="" sf=""
+				if [ -n "$watcher" ] && json=$(new_result $mwork/server "$before"); then
+					sj=$mlogs/timing/$(file "$w")-$codec-$run.json sf=${sj%.json}.frames.csv
+					cp "$json" "$sj"
+					cp "${json%.json}.frames.csv" "$sf" 2>/dev/null || sf=""
+					# Moonshine reports the stream it negotiated: an HDR request it answered in SDR is a failure.
+					if [ "$whdr" = 1 ] && [ "$(jq '.runs[0].config.hdr' "$sj")" != true ]; then
+						row "$name" FAIL "asked for HDR, Moonshine streamed SDR"
+					fi
+					# And the mode: a report about 1080p60 that streamed something else would mislead.
+					got=$(jq -r '.runs[0].config | "\(.width)x\(.height)@\(.target_fps) \(.bitrate / 1000 | floor)"' "$sj")
+					[ "$got" = "$mlabel $mkbps" ] ||
+						row "$name" FAIL "asked for $mlabel at $mkbps kb/s, Moonshine streamed ${got% *} at ${got#* } kb/s"
+				fi
+			done
+		done
+	done
+	stop_server
+}
+
+# --- Baseline --------------------------------------------------------------------------------------------------
+
+# The workloads that compare builds: speed streams for those measured in Moonshine (host latency or smoothness),
+# a click-to-flash stream for those that click.
+compare_wls=()
+for w in "${workloads[@]}"; do [ "${wl_baseline[$w]}" = 0 ] || compare_wls+=("$w"); done
+timed() { jq -e 'index("server_latency") or index("smoothness")' <<< "${wl_measures[$1]}" > /dev/null; }
+clicks() { [[ " ${wl_streams[$1]} " == *" click "* ]]; }
+lossy() { jq -e 'index("loss_recovery")' <<< "${wl_measures[$1]}" > /dev/null && [[ " ${wl_streams[$1]} " == *" loss "* ]]; }
+
+# loss_args: the client options of the stream with packets dropped, as `loss` holds them.
+loss_args() { if [ ${#chaos[@]} -gt 0 ]; then loss=("${chaos[@]}"); else loss=(--loss-frame-every 120); fi; }
+
+compare=0 speed=1
+if [ $baseline = 1 ] && [ ${#compare_wls[@]} -gt 0 ]; then
+	compare=1
+	if [ -z "$watcher" ]; then
+		speed=0
+		row "Speed vs baseline" skipped "the comparison needs the statistics socket in the Moonshine under test"
+	fi
+	build base || compare=0
+	if [ $compare = 1 ] && [ $speed = 1 ] && ! has_socket base; then
+		speed=0
+		row "Speed vs baseline" skipped "baseline Moonshine ${label[base/moonshine]} has no statistics socket; pick one that does with --baseline-ref"
+	fi
+fi
+
+# bench_streams SIDE: from that side's build, for each comparing workload and codec: with the speed comparison,
+# $iterations streams with nothing dropped, each recorded by moonshine-otel into $mwork/bench/SIDE/WORKLOAD/CODEC/
+# (each --seconds plus the 2 s moonshine-otel discards as warmup; the client doesn't decode, it only receives); and
+# for workloads that click, a click-to-flash stream; for workloads measuring loss recovery, one stream with the same
+# packets dropped as the test build's loss stream (seed 1 on both builds, so both see the same losses). Only the
+# timed streams repeat: the speed verdict compares their spread; the others feed the report card's baseline column.
+bench_streams() {
+	local side=$1 w codec i before json args d bdir range what_
+	what_=$(what "$side")
+	start_server "$side" $mwork/bench/$side || return 1
+	client list > /dev/null 2>&1 || pair_client || return 1
+	for w in "${compare_wls[@]}"; do
+		offered_codecs "${wl_hdr[$w]}"
+		range=""
+		[ "${wl_hdr[$w]}" = 0 ] || range=" HDR"
+		for codec in "${offered[@]}"; do
+			d=$mlogs/bench/$side/$(file "$w")/$codec bdir=$mwork/bench/$side/$(file "$w")/$codec
+			mkdir -p "$d" "$bdir"
+			if [ $speed = 1 ] && timed "$w"; then
+				say "Benchmarking $what_: ${wl_title[$w]}, $codec$range"
+				for i in $(seq "$iterations"); do
+					before=$(results $mwork/bench/$side)
+					args=(stream "$w" --codec "$codec" --seconds $((seconds + 2)) --decode none --quit --csv "$d/stream-$i.csv")
+					[ "${wl_hdr[$w]}" = 0 ] || args+=(--hdr)
+					if ! client "${args[@]}" > "$d/stream-$i.log" 2>&1 || ! json=$(new_result $mwork/bench/$side "$before"); then
+						row "Benchmark $what_, ${wl_title[$w]}, $codec" FAIL "see ${d#"$mout"/}/stream-$i.log"
+						rm -rf "$bdir"
+						break
+					fi
+					mv "$json" "$bdir/"
+					cp "$bdir/$(basename "$json")" "$d/"
+					# Its per-frame record; compare reads only the JSON.
+					mv "${json%.json}.frames.csv" "$d/" 2>/dev/null || true
+				done
+			fi
+			if lossy "$w"; then
+				say "Loss recovery $what_: ${wl_title[$w]}, $codec$range"
+				loss_args
+				for i in 1; do
+					before=$(results $mwork/bench/$side)
+					# --seed first, so a --seed in --chaos still wins.
+					args=(stream "$w" --codec "$codec" --seconds "$seconds" --quit --seed "$i" "${loss[@]}"
+						--json "$d/loss-$i.json" --csv "$d/loss-$i.csv")
+					[ "${wl_hdr[$w]}" = 0 ] || args+=(--hdr)
+					if ! client "${args[@]}" > "$d/loss-$i.log" 2>&1; then
+						row "${wl_title[$w]}: $codec$range, loss $i$( [ "$side" = base ] && echo ", baseline")" FAIL \
+							"see ${d#"$mout"/}/loss-$i.log"
+					fi
+					# moonshine-otel recorded it too; it's not part of the speed comparison.
+					if [ -n "$watcher" ] && json=$(new_result $mwork/bench/$side "$before"); then
+						rm -f "$json" "${json%.json}.frames.csv"
+					fi
+				done
+			fi
+			if clicks "$w"; then
+				say "Click-to-flash $what_: ${wl_title[$w]}, $codec$range"
+				before=$(results $mwork/bench/$side)
+				args=(stream "$w" --codec "$codec" --seconds "$click_seconds" --quit --click-every "$click_every"
+					--json "$d/click.json")
+				[ "${wl_hdr[$w]}" = 0 ] || args+=(--hdr)
+				if client "${args[@]}" > "$d/click.log" 2>&1; then
+					[ "$side" != base ] || click_row "${wl_title[$w]}: $codec$range, clicks, baseline" "$d/click.json"
+				else
+					row "${wl_title[$w]}: $codec$range, clicks$( [ "$side" = base ] && echo ", baseline")" FAIL \
+						"see ${d#"$mout"/}/click.log"
+				fi
+				# moonshine-otel recorded it too; it's not part of the speed comparison.
+				if [ $speed = 1 ] && json=$(new_result $mwork/bench/$side "$before"); then
+					rm -f "$json" "${json%.json}.frames.csv"
+				fi
+			fi
+		done
+	done
+	stop_server
+}
+
+# compare_builds: moonshine-otel compare of each workload and codec's benchmark streams, both builds.
+compare_builds() {
+	local w codec t b md status verdict result
+	for w in "${compare_wls[@]}"; do
+		for codec in h264 hevc av1; do
+			t=$mwork/bench/test/$(file "$w")/$codec b=$mwork/bench/base/$(file "$w")/$codec
+			[ $speed = 1 ] && [ -n "$(ls "$t"/*.json 2>/dev/null)" ] && [ -n "$(ls "$b"/*.json 2>/dev/null)" ] || continue
+			md=$mlogs/bench/compare-$(file "$w")-$codec.md
+			status=0
+			"$watcher" compare "$b" "$t" --format markdown > "$md" 2>&1 || status=$?
+			case $status in
+			0) verdict="no regression" result=ok ;;
+			1) verdict="slower" result=FAIL ;;
+			*) verdict="no verdict" result=skipped ;;
+			esac
+			row "${wl_title[$w]}: speed $codec vs baseline" $result "$verdict (${md#"$out"/})"
+		done
+	done
+}
+
+# --- Modes -----------------------------------------------------------------------------------------------------
+
+# Each mode streams everything again, from both builds, into its own results; the builds and GPU tests above are
+# shared, and their checks are in every mode's summary.
+shared_rows=("${rows[@]}")
+for m in "${modes[@]}"; do
+	mode_parts "$m"
+	if [ ${#modes[@]} -gt 1 ]; then
+		mout=$out/$(mode_dir) mlogs=$out/$(mode_dir)/logs mwork=/work/$(mode_dir)
+		say "Mode $(mode_text)"
+	fi
+	mkdir -p "$mlogs" "$mwork"
+	rows=("${shared_rows[@]}") noted=() run_name=""
+	mode_open=1
+	test_streams || true
+	if [ $compare = 1 ]; then
+		mkdir -p "$mlogs/bench"
+		{ bench_streams test && bench_streams base && compare_builds; } || true
+	fi
+	finish_mode
+done
+
+exit $((failed & strict))

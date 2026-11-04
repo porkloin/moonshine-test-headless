@@ -1,0 +1,188 @@
+{
+  "modes": {
+    "720p60": "1280x720@60",
+    "1080p60": "1920x1080@60",
+    "1080p120": "1920x1080@120",
+    "1080p240": "1920x1080@240",
+    "1440p120": "2560x1440@120",
+    "4k60": "3840x2160@60",
+    "4k120": "3840x2160@120",
+    "4k240": "3840x2160@240"
+  },
+  "tiers": {
+    "quick": [
+      "vkcube"
+    ],
+    "standard": [
+      "vkcube",
+      "hdrneon-cycle",
+      "clickflash"
+    ],
+    "full": [
+      "vkcube",
+      "hdrneon-cycle",
+      "clickflash",
+      "gravitymark"
+    ]
+  },
+  "workloads": {
+    "vkcube": {
+      "title": "vkcube",
+      "description": "A spinning cube: almost no GPU load, so what's measured is Moonshine itself.",
+      "load": "low",
+      "command": [
+        "/usr/bin/vkcube",
+        "--wsi",
+        "wayland"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "smoothness",
+        "server_latency",
+        "loss_recovery",
+        "bitrate"
+      ],
+      "baseline": true
+    },
+    "glxgears": {
+      "title": "glxgears",
+      "description": "Spinning gears through Xwayland: low load, an X11 app.",
+      "load": "low",
+      "command": [
+        "/usr/bin/glxgears",
+        "-fullscreen"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "smoothness",
+        "server_latency",
+        "loss_recovery",
+        "bitrate"
+      ],
+      "baseline": true
+    },
+    "hdrneon": {
+      "title": "hdrneon",
+      "description": "Bright, saturated motion: a busy picture for the encoder, in SDR or (with --hdr) HDR10.",
+      "load": "low",
+      "command": [
+        "/usr/local/bin/hdrneon",
+        "--fullscreen",
+        "--mode",
+        "sdr"
+      ],
+      "command_hdr": [
+        "/usr/local/bin/hdrneon",
+        "--fullscreen",
+        "--mode",
+        "hdr10"
+      ],
+      "log": true,
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "smoothness",
+        "server_latency",
+        "loss_recovery",
+        "bitrate"
+      ],
+      "baseline": true
+    },
+    "hdrneon-cycle": {
+      "title": "hdrneon, SDR/HDR switching",
+      "description": "An HDR stream whose content switches between SDR, HDR10 and scRGB every second, as games do when they change their swapchain.",
+      "hdr": true,
+      "command": [
+        "/usr/local/bin/hdrneon",
+        "--fullscreen",
+        "--mode",
+        "hdr10",
+        "--cycle",
+        "1"
+      ],
+      "log": true,
+      "switch_every_s": 1,
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "hdr_transitions",
+        "loss_recovery"
+      ],
+      "baseline": true
+    },
+    "clickflash": {
+      "title": "clickflash",
+      "description": "Flashes the screen on each click: the time from a click to the flash being decoded is click-to-photon latency.",
+      "load": "low",
+      "command": [
+        "/usr/local/bin/clickflash",
+        "--fullscreen"
+      ],
+      "log": true,
+      "streams": [
+        "click"
+      ],
+      "measures": [
+        "correctness",
+        "click_latency"
+      ],
+      "baseline": true
+    },
+    "clickflash:no-vsync": {
+      "title": "clickflash, no vsync",
+      "description": "clickflash presenting without vsync (mailbox or immediate), each flash up for 34 ms.",
+      "load": "low",
+      "command": [
+        "/usr/local/bin/clickflash",
+        "--fullscreen",
+        "--no-vsync",
+        "--flash-ms",
+        "34"
+      ],
+      "log": true,
+      "streams": [
+        "click"
+      ],
+      "measures": [
+        "correctness",
+        "click_latency"
+      ],
+      "baseline": true
+    },
+    "gravitymark": {
+      "title": "GravityMark",
+      "description": "Tellusim's GPU stress test, saturating the GPU Moonshine encodes on, as a demanding game does.",
+      "load": "high",
+      "warmup_s": 5,
+      "command": [
+        "@gravitymark"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "load",
+        "smoothness",
+        "server_latency",
+        "loss_recovery"
+      ],
+      "baseline": true
+    }
+  }
+}

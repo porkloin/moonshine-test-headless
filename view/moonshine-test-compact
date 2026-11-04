@@ -1,0 +1,24 @@
+#!/bin/bash
+# A smaller copy of a run's results.tar.gz, for attaching it where there's a size limit (GitHub's is 25 MB): the
+# same files, with the metric points that repeat their series' previous value left out (moonshine-otel compact).
+# The views and summaries it makes are the same. Written next to it as NAME-compact.tar.gz.
+#
+#   moonshine-test-compact RESULTS.tar.gz
+set -euo pipefail
+die() { echo "moonshine-test-compact: $*" >&2; exit 2; }
+[ $# -eq 1 ] || die "usage: podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view RESULTS.tar.gz"
+in=$1
+[[ $in == /* ]] || in=/results/${in#./}
+[ -f "$in" ] || die "no $1 in the current folder"
+out=${in%.tar.gz}-compact.tar.gz
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+mkdir "$work/run"
+tar -xzf "$in" -C "$work/run" || die "can't unpack $1"
+[ -d "$work/run/logs/otlp" ] || die "$1 has no telemetry (logs/otlp)"
+moonshine-otel compact "$work/run/logs/otlp" "$work/otlp"
+rm -r "$work/run/logs/otlp"
+mv "$work/otlp" "$work/run/logs/otlp"
+(cd "$work/run" && tar -cf - -- *) | gzip -9 > "$out"
+echo "${out#/results/}: $(( $(stat -c %s "$out") / 1000000 )) MB (was $(( $(stat -c %s "$in") / 1000000 )) MB)"

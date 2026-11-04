@@ -1,0 +1,257 @@
+#!/bin/bash
+# Explore runs' results.tar.gz in a throwaway Grafana: Prometheus, Tempo and Grafana start in this container, take
+# in the runs' telemetry and serve the boards until Ctrl+C. Nothing is kept.
+#
+#   moonshine-test-view BUNDLE...
+#
+# BUNDLE is a results.tar.gz, a run's folder, or its logs/otlp spool, relative to the current folder (/results here).
+# With more than one, the test runs board opens with the first as run A and the second as run B.
+set -euo pipefail
+
+die() { echo "moonshine-test-view: $*" >&2; exit 2; }
+start_port=${MOONSHINE_TEST_VIEW_PORT:-3333}
+
+# This container shares the host's network, so every service listens on 127.0.0.1, on a port picked when it binds:
+# a port that answers bash's /dev/tcp is taken (the image has no ss/netstat), and ports picked in this run are
+# remembered so its services never share one. Grafana scans up from 3333, the rest from 19090.
+picked_ports=()
+port_pick=
+service_pid=
+prom_port=
+tempo_http_port=
+tempo_grpc_port=
+otlp_http_port=
+tempo_internal_port=
+memberlist_port=
+grafana_port=
+pick_port() {
+	local p=$1
+	while :; do
+		if ! [[ " ${picked_ports[*]:-} " == *" $p "* ]] && ! (exec 3<>/dev/tcp/127.0.0.1/"$p") 2>/dev/null; then
+			picked_ports+=("$p")
+			port_pick=$p
+			return
+		fi
+		p=$((p + 1))
+	done
+}
+up() {
+	local i
+	for i in $(seq "$2"); do
+		kill -0 "$3" 2>/dev/null || return 1
+		curl -fs -o /dev/null "$1" && return 0
+		sleep 0.5
+	done
+	return 1
+}
+# $1 the service's pid, $2 seconds: it is up that long. A service that can't bind notices late (Grafana takes a
+# dozen seconds, and its port answers the whole time when a concurrent viewer owns it), so the port is only
+# announced once this service's own process has survived a look at it.
+alive() {
+	local i
+	for i in $(seq $(( $2 * 2 ))); do
+		kill -0 "$1" 2>/dev/null || return 1
+		sleep 0.5
+	done
+	return 0
+}
+# $1 the service's name (its log file), $2 the port to scan up from, $3 its ready path, $4 seconds to wait for it,
+# $5 the starter: it binds $port_pick and backgrounds the process in service_pid, $6 seconds it must stay up.
+# A port a concurrent viewer takes between picking and binding only moves this service to the next free port.
+start_service() {
+	local name=$1 from=$2 path=$3 secs=$4 starter=$5 settle=$6 try bound
+	for try in 1 2 3 4; do
+		pick_port "$from"
+		bound=$port_pick
+		"$starter"
+		if up "http://127.0.0.1:$bound/$path" $((secs * 2)) "$service_pid" && alive "$service_pid" "$settle"; then
+			return 0
+		fi
+		kill "$service_pid" 2>/dev/null || true
+		wait "$service_pid" 2>/dev/null || true
+		echo "moonshine-test-view: $name: 127.0.0.1:$bound went busy; trying the next free port" >&2
+		tail -5 "$work/$name.log" >&2 || true
+	done
+	die "$name didn't start"
+}
+
+[ $# -ge 1 ] || die "usage: podman container runlabel run ghcr.io/porkloin/moonshine-test-headless:view RESULTS.tar.gz..."
+work=$(mktemp -d)
+trap 'kill $(jobs -p) 2>/dev/null; wait 2>/dev/null; rm -rf "$work"' EXIT
+
+# Each bundle's spool: OTLP requests as files named <nanoseconds>-..., one per batch.
+spools=()
+for arg in "$@"; do
+	bundle=$arg
+	[[ $bundle == /* ]] || bundle=/results/${bundle#./}
+	[ -e "$bundle" ] || die "no $arg in the current folder"
+	if [ -d "$bundle/logs/otlp" ]; then
+		spool=$bundle/logs/otlp
+	elif [ -d "$bundle" ]; then
+		spool=$bundle
+	else
+		dir=$work/bundle${#spools[@]}
+		mkdir "$dir"
+		tar -xzf "$bundle" -C "$dir" || die "can't unpack $arg"
+		spool=$dir/logs/otlp
+	fi
+	f=("$spool"/*.metrics.pb)
+	[ -e "${f[0]}" ] || die "$arg has no telemetry (logs/otlp)"
+	spools+=("$spool")
+done
+
+# Prometheus takes samples out of order within a year, and keeps them whatever their age. Tempo dates blocks by
+# their spans, not by when they arrived, keeps them, and searches the ingester for any time range.
+mkdir -p "$work/prometheus" "$work/tempo" "$work/grafana/provisioning/datasources" \
+	"$work/grafana/provisioning/dashboards"
+cat > "$work/prometheus.yaml" <<'EOF'
+otlp:
+  promote_resource_attributes: [gpu.model, host.name, moonshine.rev]
+storage:
+  tsdb:
+    out_of_order_time_window: 365d
+EOF
+cat > "$work/grafana/provisioning/dashboards/dashboards.yaml" <<'EOF'
+apiVersion: 1
+providers:
+  - name: boards
+    type: file
+    options: {path: /usr/share/moonshine-test-view/dashboards, foldersFromFilesStructure: true}
+EOF
+
+start_prometheus() {
+	prom_port=$port_pick
+	prometheus --config.file="$work/prometheus.yaml" --storage.tsdb.path="$work/prometheus" \
+		--storage.tsdb.retention.time=100y --web.listen-address=127.0.0.1:"$prom_port" --web.enable-otlp-receiver \
+		> "$work/prometheus.log" 2>&1 &
+	service_pid=$!
+}
+start_tempo() {
+	tempo_http_port=$port_pick
+	pick_port 19090
+	tempo_grpc_port=$port_pick
+	pick_port 19090
+	otlp_http_port=$port_pick
+	pick_port 19090
+	tempo_internal_port=$port_pick
+	pick_port 19090
+	memberlist_port=$port_pick
+	cat > "$work/tempo.yaml" <<EOF
+stream_over_http_enabled: true
+server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: $tempo_http_port
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: $tempo_grpc_port
+internal_server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: $tempo_internal_port
+memberlist:
+  bind_addr: [127.0.0.1]
+  bind_port: $memberlist_port
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 127.0.0.1:$otlp_http_port
+ingester:
+  trace_idle_period: 2s
+  max_block_duration: 5m
+compactor:
+  compaction:
+    block_retention: 87600h
+storage:
+  trace:
+    backend: local
+    local:
+      path: $work/tempo/blocks
+    wal:
+      path: $work/tempo/wal
+      ingestion_time_range_slack: 87600h
+overrides:
+  defaults:
+    ingestion:
+      rate_limit_bytes: 1000000000
+      burst_size_bytes: 1000000000
+      max_traces_per_user: 0
+    global:
+      max_bytes_per_trace: 50000000
+query_frontend:
+  search:
+    max_spans_per_span_set: 1000
+    query_ingesters_until: 87600h
+    max_duration: 0
+usage_report:
+  reporting_enabled: false
+EOF
+	tempo -config.file="$work/tempo.yaml" > "$work/tempo.log" 2>&1 &
+	service_pid=$!
+}
+start_grafana() {
+	grafana_port=$port_pick
+	cat > "$work/grafana/provisioning/datasources/datasources.yaml" <<EOF
+apiVersion: 1
+datasources:
+  - {name: Prometheus, type: prometheus, uid: prometheus, url: "http://127.0.0.1:$prom_port", isDefault: true}
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: http://127.0.0.1:$tempo_http_port
+    jsonData: {tracesToMetrics: {datasourceUid: prometheus}}
+EOF
+	GF_PATHS_DATA=$work/grafana/data GF_PATHS_LOGS=$work/grafana/logs GF_PATHS_PROVISIONING=$work/grafana/provisioning \
+	GF_SERVER_HTTP_ADDR=127.0.0.1 GF_SERVER_HTTP_PORT="$grafana_port" GF_AUTH_ANONYMOUS_ENABLED=true \
+	GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+	GF_AUTH_DISABLE_LOGIN_FORM=true GF_ANALYTICS_REPORTING_ENABLED=false GF_ANALYTICS_CHECK_FOR_UPDATES=false \
+	GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false GF_NEWS_NEWS_FEED_ENABLED=false GF_PLUGINS_PREINSTALL_DISABLED=true \
+	GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH="/usr/share/moonshine-test-view/dashboards/Moonshine tests/test-runs.json" \
+		grafana server --homepath /usr/share/grafana > "$work/grafana.log" 2>&1 &
+	service_pid=$!
+}
+
+start_service prometheus 19090 -/ready 30 start_prometheus 8
+start_service tempo 19090 ready 30 start_tempo 8
+
+post() { curl -fsS -o /dev/null -H 'Content-Type: application/x-protobuf' --data-binary "@$2" "$1"; }
+export -f post
+export work
+# The runs Prometheus has: a JSON array of names.
+runs() {
+	curl -fsS "http://127.0.0.1:$prom_port/api/v1/label/run/values" -G \
+		--data-urlencode 'match[]=moonshine_client_frames_total' |
+		sed 's/.*"data":\[//; s/\].*//' | grep -o '"[^"]*"' | tr -d '"' || true
+}
+# curl encodes; the request itself goes nowhere (nothing listens on port 9).
+urlencode() { { curl -Gso /dev/null -w '%{url_effective}' --data-urlencode "v=$1" http://127.0.0.1:9/ || true; } | sed 's/^[^=]*=//'; }
+
+from="" to="" picked=() n=0
+for spool in "${spools[@]}"; do
+	n=$((n + 1))
+	metrics=("$spool"/*.metrics.pb) traces=("$spool"/*.traces.pb)
+	[ -e "${traces[0]}" ] || traces=()
+	echo "Loading run $n of ${#spools[@]}: ${#metrics[@]} metric batches, ${#traces[@]} trace batches..."
+	before=$(runs)
+	# In name order, which is time order, so Prometheus takes nearly every sample in order.
+	for f in "${metrics[@]}"; do post "http://127.0.0.1:$prom_port/api/v1/otlp/v1/metrics" "$f" || echo "$f" >> "$work/failed"; done
+	[ ${#traces[@]} -eq 0 ] || printf '%s\0' "${traces[@]}" |
+		xargs -0 -P 8 -n 1 bash -c 'post "http://127.0.0.1:'"$otlp_http_port"'/v1/traces" "$0" || echo "$0" >> "$work/failed"' || true
+	# This bundle's run, for the board's A and B.
+	new=$(comm -13 <(echo "$before" | sort) <(runs | sort) | head -1)
+	[ -z "$new" ] || picked+=("$new")
+	# The time range covering every run, from first and last batches, with a minute either side.
+	first=$(basename "${metrics[0]}") last=$(basename "${metrics[-1]}")
+	a=$(( 10#${first%%-*} / 1000000 - 60000 )) b=$(( 10#${last%%-*} / 1000000 + 60000 ))
+	[ -n "$from" ] && [ "$from" -le "$a" ] || from=$a
+	[ -n "$to" ] && [ "$to" -ge "$b" ] || to=$b
+done
+[ ! -s "$work/failed" ] || echo "($(wc -l < "$work/failed") batches didn't load; the rest did)"
+start_service grafana "$start_port" api/health 60 start_grafana 25
+link="http://localhost:$grafana_port/d/moonshine-test-runs?from=$from&to=$to"
+[ ${#picked[@]} -lt 2 ] ||
+	link+="&var-run=$(urlencode "${picked[0]}")&var-side=test&var-run_b=$(urlencode "${picked[1]}")&var-side_b=test"
+
+echo
+echo "Open $link"
+echo "Ctrl+C to stop; nothing is kept."
+wait

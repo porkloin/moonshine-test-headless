@@ -1,0 +1,4 @@
+results
+third_party/moonshine-otel/.git
+third_party/moonshine-otel/target
+moonshine-test-[0-9]*

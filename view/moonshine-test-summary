@@ -1,0 +1,15 @@
+#!/bin/bash
+# A run's summary.md, made again from its results.tar.gz (or folder), with the test runs board's queries and the
+# harness's targets. Given a second bundle, it's set beside the first.
+#
+#   moonshine-test-summary BUNDLE [OTHER]
+set -euo pipefail
+die() { echo "moonshine-test-summary: $*" >&2; exit 2; }
+[ $# -ge 1 ] && [ $# -le 2 ] ||
+	die "usage: podman container runlabel summary ghcr.io/porkloin/moonshine-test-headless:view RESULTS.tar.gz [OTHER.tar.gz]"
+path() { [[ $1 == /* ]] && echo "$1" || echo "/results/${1#./}"; }
+a=$(path "$1"); [ -e "$a" ] || die "no $1 in the current folder"
+args=()
+if [ $# -eq 2 ]; then b=$(path "$2"); [ -e "$b" ] || die "no $2 in the current folder"; args=(--baseline "$b"); fi
+exec moonshine-otel summary "$a" "${args[@]}" --queries /usr/share/moonshine-test-view/test-runs-queries.json \
+	--targets /usr/share/moonshine-test-view/targets.json --prometheus /usr/local/bin/prometheus

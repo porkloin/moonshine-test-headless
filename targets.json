@@ -1,0 +1,352 @@
+{
+  "status": "Provisional: drawn from other streaming projects' published claims, which each measure differently. Open to discussion.",
+  "metrics": {
+    "bad_pictures": {
+      "measure": "correctness",
+      "label": "decode errors",
+      "what": "Frames the client failed to decode, or decoded corrupt, on every stream.",
+      "unit": "",
+      "better": "lower",
+      "scale": "step",
+      "target": 0,
+      "acceptable": 0,
+      "basis": "Decode failures plus corrupt decodes. Any is a bug: 100 with none, else 0."
+    },
+    "missing_clean": {
+      "measure": "correctness",
+      "label": "lost frames",
+      "what": "Frames that never reached the client's decoder on streams with nothing dropped.",
+      "unit": "",
+      "better": "lower",
+      "scale": "step",
+      "target": 0,
+      "acceptable": 3,
+      "basis": "Frames that never arrived on streams with nothing dropped: 100 with none, 50 with up to 3."
+    },
+    "frame_time_p99": {
+      "measure": "smoothness",
+      "label": "frame pacing p99",
+      "what": "The 99th percentile of the time between frames arriving at the client on clean streams, in frame intervals: 1 is perfect pacing.",
+      "unit": "frame intervals",
+      "better": "lower",
+      "target": 1.1,
+      "acceptable": 1.5,
+      "basis": "Gap between frame arrivals; one frame interval is perfect pacing. Rubylight reports 1.25 intervals on wired LAN, and loopback has no network to excuse more.",
+      "see": [
+        {
+          "label": "Percentile",
+          "url": "https://en.wikipedia.org/wiki/Percentile"
+        },
+        {
+          "label": "Micro stuttering",
+          "url": "https://en.wikipedia.org/wiki/Micro_stuttering"
+        }
+      ],
+      "references": [
+        {
+          "project": "Rubylight",
+          "claim": "arrival interval p99 20.9 ms, HEVC 1080p60, wired LAN, moonlight-common-c client",
+          "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
+        }
+      ]
+    },
+    "fps_delivered": {
+      "measure": "smoothness",
+      "label": "delivered frame rate",
+      "what": "Frames the client received per second on clean streams, as a share of the stream's frame rate.",
+      "unit": "% of requested",
+      "better": "higher",
+      "target": 99,
+      "acceptable": 90,
+      "basis": "A host that can't keep up sends fewer, evenly spaced frames, which frame time alone misses.",
+      "see": [
+        {
+          "label": "Frame rate",
+          "url": "https://en.wikipedia.org/wiki/Frame_rate"
+        }
+      ]
+    },
+    "server_p99_ms": {
+      "measure": "server_latency",
+      "label": "host latency p99",
+      "what": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.",
+      "unit": "ms",
+      "better": "lower",
+      "target": 3,
+      "acceptable": 8,
+      "basis": "Mostly the encode, which scales with resolution, not frame rate. Other hosts report 0.45–4.4 ms.",
+      "see": [
+        {
+          "label": "Percentile",
+          "url": "https://en.wikipedia.org/wiki/Percentile"
+        }
+      ],
+      "references": [
+        {
+          "project": "Rubylight",
+          "claim": "encode 2.6–3.1 ms at 1440p120 idle; mean host processing 0.45 ms on wired LAN",
+          "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
+        },
+        {
+          "project": "Punktfunk",
+          "claim": "p50 ~0.8 ms capture → received at 720p120 on its punktfunk/1 protocol, NVIDIA zero-copy NVENC (README June–September 2026; span ends at the client, so it includes the network; machines not stated)",
+          "url": "https://git.unom.io/unom/punktfunk/src/commit/e021d7fddfdadcf00326de309be90adca4029983/README.md"
+        },
+        {
+          "project": "Punktfunk",
+          "claim": "PyroWave encode p99 6.4 → 4.4 ms on an RTX 5070 Ti under GRID 2",
+          "url": "https://punktfunk.unom.io/en/blog/game-streaming-latency-under-gpu-load"
+        },
+        {
+          "project": "Punktfunk",
+          "claim": "4–8 ms end to end at 4K120 HDR on an RTX 4090 with encoding in the display driver, against 9–17 ms in-process (span not stated)",
+          "url": "https://punktfunk.unom.io/en/blog/windows-encoder-inside-display-driver"
+        }
+      ]
+    },
+    "freeze_p95": {
+      "measure": "loss_recovery",
+      "label": "recovery time p95",
+      "what": "The 95th percentile of how long the picture stood still after a lost frame, until a frame recovered it, in frame intervals.",
+      "unit": "frame intervals",
+      "better": "lower",
+      "target": 3,
+      "acceptable": 8,
+      "basis": "How long the picture stands still after a loss. Recovery takes a round trip and an encode, so about three frame intervals is the floor; a keyframe takes longer.",
+      "see": [
+        {
+          "label": "Percentile",
+          "url": "https://en.wikipedia.org/wiki/Percentile"
+        },
+        {
+          "label": "Packet loss",
+          "url": "https://en.wikipedia.org/wiki/Packet_loss"
+        }
+      ],
+      "references": [
+        {
+          "project": "Rubylight",
+          "claim": "mean gap after a keyframe cut from 8.44 to 5.30 ms (HEVC, recovery cadence work)",
+          "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
+        }
+      ]
+    },
+    "recovered_without_keyframe": {
+      "measure": "loss_recovery",
+      "label": "RFI recovery rate",
+      "what": "The share of lost frames the stream recovered from with reference frame invalidation (RFI) instead of a keyframe.",
+      "unit": "%",
+      "better": "higher",
+      "target": 95,
+      "acceptable": 50,
+      "basis": "Losses recovered by reference frame invalidation, without a keyframe, which should make keyframes after a loss rare. Rubylight recovers 59 of 59 without one.",
+      "see": [
+        {
+          "label": "Picture types (I, P, B frames)",
+          "url": "https://en.wikipedia.org/wiki/Video_compression_picture_types"
+        }
+      ],
+      "references": [
+        {
+          "project": "Rubylight",
+          "claim": "AV1, 20 ms of video dropped every 1.5 s for 90 s: 59 of 59 lost frames recovered without a keyframe",
+          "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
+        }
+      ]
+    },
+    "click_median": {
+      "measure": "click_latency",
+      "label": "input latency p50",
+      "what": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.",
+      "unit": "frame intervals",
+      "better": "lower",
+      "target": 1,
+      "acceptable": 2,
+      "basis": "From the injected click to the decoded flash. The app's next frame and its render take about one interval, so 1 is the floor.",
+      "see": [
+        {
+          "label": "Input lag",
+          "url": "https://en.wikipedia.org/wiki/Input_lag"
+        }
+      ],
+      "references": [
+        {
+          "project": "Rubylight",
+          "claim": "5.89 ms median capture to client present, AV1 1080p60, loopback",
+          "url": "https://github.com/RamazanKara/Rubylight"
+        },
+        {
+          "project": "Nightjar",
+          "claim": "7 ms median picture age, capture to rendered, Retroid Pocket 6 over Wi-Fi, HEVC 1080p60",
+          "url": "https://github.com/RamazanKara/nightjar"
+        }
+      ]
+    },
+    "keyframes_per_switch": {
+      "measure": "hdr_transitions",
+      "label": "HDR switch keyframes",
+      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB).",
+      "unit": "",
+      "better": "lower",
+      "target": 0.7,
+      "acceptable": 1.2,
+      "basis": "SDR ↔ HDR changes the color description, which takes a keyframe; HDR10 ↔ scRGB needn't. hdrneon's cycle puts the floor at 0.67.",
+      "see": [
+        {
+          "label": "Key frame",
+          "url": "https://en.wikipedia.org/wiki/Key_frame"
+        },
+        {
+          "label": "HDR10",
+          "url": "https://en.wikipedia.org/wiki/HDR10"
+        },
+        {
+          "label": "scRGB",
+          "url": "https://en.wikipedia.org/wiki/ScRGB"
+        }
+      ]
+    },
+    "load_fps": {
+      "measure": "load",
+      "label": "FPS under GPU load",
+      "what": "Frames the client received per second while the GPU was under heavy load, as a share of the stream's frame rate.",
+      "unit": "% of requested",
+      "better": "higher",
+      "target": 99,
+      "acceptable": 90,
+      "basis": "The slowest codec's frame rate with the GPU busy. Other hosts report 85–100% under load, and as low as 42% before fixes.",
+      "see": [
+        {
+          "label": "Frame rate",
+          "url": "https://en.wikipedia.org/wiki/Frame_rate"
+        }
+      ],
+      "references": [
+        {
+          "project": "Rubylight",
+          "claim": "117–120 fresh pictures/s at 120 fps under GPU load; Vibepollo 2.0 103–118",
+          "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
+        },
+        {
+          "project": "Punktfunk",
+          "claim": "a loaded NVIDIA host delivered about 25 of a game's 60 fps with 70 ms of encode latency, fixed by real-time GPU priority",
+          "url": "https://punktfunk.unom.io/en/blog/game-streaming-latency-under-gpu-load"
+        }
+      ]
+    },
+    "peak_bitrate": {
+      "measure": "bitrate",
+      "label": "peak bitrate",
+      "what": "The busiest one-second window of bits the client received, as a share of the bitrate the stream asked for.",
+      "unit": "% of requested",
+      "better": "lower",
+      "target": 110,
+      "acceptable": 150,
+      "basis": "Rate control should hold near the bitrate. Keyframes burst over it, and a link sized for the bitrate drops what doesn't fit.",
+      "see": [
+        {
+          "label": "Bit rate",
+          "url": "https://en.wikipedia.org/wiki/Bit_rate"
+        }
+      ]
+    }
+  },
+  "unpublished": [
+    {
+      "project": "Sunshine",
+      "url": "https://github.com/LizardByte/Sunshine",
+      "note": "no published latency or pacing figures"
+    },
+    {
+      "project": "Apollo",
+      "url": "https://github.com/ClassicOldSong/Apollo",
+      "note": "no published latency or pacing figures"
+    },
+    {
+      "project": "Vibeshine",
+      "url": "https://github.com/Nonary/vibeshine",
+      "note": "pacing features, no published figures"
+    },
+    {
+      "project": "Vibepollo",
+      "url": "https://github.com/Nonary/Vibepollo",
+      "note": "pacing features (adaptive packet pacing), no published figures"
+    }
+  ],
+  "click_context": {
+    "about": "What a click's latency feels like next to everyday hardware. The test measures from the client injecting a click to the client finishing the decode of the flash, over loopback: no input device, network or display. The parts a real setup adds, and whole-chain measurements of local play and cloud streaming, come from published tests, each one setup and method; treat them as rough.",
+    "adds": [
+      {
+        "part": "input device",
+        "label": "wired mouse",
+        "low": 9,
+        "high": 11,
+        "claim": "RTINGS' example graph: one wired mouse's clicks at about 9–11 ms, its methodology counting under 10 ms as good",
+        "url": "https://rtings.com/mouse/tests/control/latency"
+      },
+      {
+        "part": "input device",
+        "label": "Bluetooth mouse",
+        "low": 17,
+        "high": 20,
+        "claim": "RTINGS' example graph: the same mouse over Bluetooth at about 17–20 ms",
+        "url": "https://rtings.com/mouse/tests/control/latency"
+      },
+      {
+        "part": "input device",
+        "label": "DualSense over Bluetooth",
+        "low": 9,
+        "high": 9,
+        "claim": "Gamepadla: 9.03 ms over Bluetooth (its comparison data is marked as in testing)",
+        "url": "https://gamepadla.com/versus/8bitdo-ultimate-2c-bluetooth_vs_sony-dualsense.html"
+      },
+      {
+        "part": "display",
+        "label": "OLED TV, game mode, 60 Hz",
+        "low": 9,
+        "high": 13,
+        "claim": "LG C3: 9.0 ms at 4K60 (Multiplayer.it, Leo Bodnar 4K lag tester) to 13.1 ms at 1080p60 (GamesRadar)",
+        "url": "https://multiplayer.it/recensioni/lg-oled-evo-c3-recensione-tv-4k-gaming.html"
+      }
+    ],
+    "setups": [
+      {
+        "label": "+ wired mouse, OLED TV",
+        "parts": [
+          "wired mouse",
+          "OLED TV, game mode, 60 Hz"
+        ]
+      },
+      {
+        "label": "+ DualSense (Bluetooth), OLED TV",
+        "parts": [
+          "DualSense over Bluetooth",
+          "OLED TV, game mode, 60 Hz"
+        ]
+      },
+      {
+        "label": "+ Bluetooth mouse, OLED TV",
+        "parts": [
+          "Bluetooth mouse",
+          "OLED TV, game mode, 60 Hz"
+        ]
+      }
+    ],
+    "whole": [
+      {
+        "label": "local PC game (whole chain)",
+        "low": 39.5,
+        "high": 51,
+        "claim": "GameStar: Destiny 2 39.5 ms, Metro Exodus 41.3 ms locally; PC Gamer: 46 and 51 ms",
+        "url": "https://www.pcgamer.com/au/geforce-now-beats-stadia-in-our-input-latency-testing"
+      },
+      {
+        "label": "GeForce Now (whole chain)",
+        "low": 69,
+        "high": 125,
+        "claim": "GameStar: 68.6–69 ms in Competitive mode, 81–98 ms in Balanced; PC Gamer: 117 and 125 ms",
+        "url": "https://www.gamepressure.com/newsroom/geforce-now-30-less-delay-in-competitive-mode-than-in-stadia/z5188d"
+      }
+    ]
+  }
+}
