@@ -146,6 +146,8 @@ done
 
 # Keyed by SIDE/PROJECT, SIDE being "test" (the refs given) or "base" (the baseline).
 declare -A owner repo kind value label commit dir
+# The run's code by name, referenced by the early summary paths: declared here so it's associative from the start.
+declare -A code_ref code_id
 projects=()
 
 # parse_ref SIDE PROJECT=REF: fill in the arrays for PROJECT's REF.
