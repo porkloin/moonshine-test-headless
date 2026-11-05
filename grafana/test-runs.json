@@ -1692,6 +1692,7 @@
               "fps": "Frame rate",
               "bitrate": "Bitrate",
               "seconds": "Stream length",
+              "chaos": "Chaos",
               "tier": "Battery"
             },
             "indexByName": {
@@ -1715,7 +1716,8 @@
               "fps": 16,
               "bitrate": 17,
               "seconds": 18,
-              "tier": 19
+              "chaos": 19,
+              "tier": 20
             }
           }
         },
@@ -1832,6 +1834,7 @@
               "fps": "Frame rate",
               "bitrate": "Bitrate",
               "seconds": "Stream length",
+              "chaos": "Chaos",
               "tier": "Battery"
             },
             "indexByName": {
@@ -1855,7 +1858,8 @@
               "fps": 16,
               "bitrate": 17,
               "seconds": 18,
-              "tier": 19
+              "chaos": 19,
+              "tier": 20
             }
           }
         },
@@ -2008,6 +2012,7 @@
               "fps": "Frame rate",
               "bitrate": "Bitrate",
               "seconds": "Stream length",
+              "chaos": "Chaos",
               "tier": "Battery",
               "Value #B": "Streams",
               "Value #C": "Frames decoded",
@@ -2034,10 +2039,11 @@
               "fps": 16,
               "bitrate": 17,
               "seconds": 18,
-              "tier": 19,
-              "Value #B": 20,
-              "Value #C": 21,
-              "Value #D": 22
+              "chaos": 19,
+              "tier": 20,
+              "Value #B": 21,
+              "Value #C": 22,
+              "Value #D": 23
             }
           }
         },
@@ -3097,6 +3103,7 @@
                   "fps": "Frame rate",
                   "bitrate": "Bitrate",
                   "seconds": "Stream length",
+                  "chaos": "Chaos",
                   "tier": "Battery"
                 },
                 "indexByName": {
@@ -3120,7 +3127,8 @@
                   "fps": 16,
                   "bitrate": 17,
                   "seconds": 18,
-                  "tier": 19
+                  "chaos": 19,
+                  "tier": 20
                 }
               }
             },
@@ -3237,6 +3245,7 @@
                   "fps": "Frame rate",
                   "bitrate": "Bitrate",
                   "seconds": "Stream length",
+                  "chaos": "Chaos",
                   "tier": "Battery"
                 },
                 "indexByName": {
@@ -3260,7 +3269,8 @@
                   "fps": 16,
                   "bitrate": 17,
                   "seconds": 18,
-                  "tier": 19
+                  "chaos": 19,
+                  "tier": 20
                 }
               }
             },
@@ -3413,6 +3423,7 @@
                   "fps": "Frame rate",
                   "bitrate": "Bitrate",
                   "seconds": "Stream length",
+                  "chaos": "Chaos",
                   "tier": "Battery",
                   "Value #B": "Streams",
                   "Value #C": "Frames decoded",
@@ -3439,10 +3450,11 @@
                   "fps": 16,
                   "bitrate": 17,
                   "seconds": 18,
-                  "tier": 19,
-                  "Value #B": 20,
-                  "Value #C": 21,
-                  "Value #D": 22
+                  "chaos": 19,
+                  "tier": 20,
+                  "Value #B": 21,
+                  "Value #C": 22,
+                  "Value #D": 23
                 }
               }
             },

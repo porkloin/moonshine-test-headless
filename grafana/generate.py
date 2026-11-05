@@ -91,7 +91,7 @@ TILE_UNITS = {"frame intervals": ("suffix: frames", 2, " frames"), "ms": ("ms", 
 FACTS = {"machine": "Machine", "cpu": "CPU", "memory": "Memory", "gpu": "GPU", "driver": "Driver",
          "other_gpus": "Other GPUs", "os": "OS", "kernel": "Kernel", "network": "Network",
          "code": "Build", "ref": "Source", "commit": "Commit", "baseline": "Baseline", "route": "Route",
-         "resolution": "Resolution", "fps": "Frame rate", "bitrate": "Bitrate", "seconds": "Stream length", "tier": "Battery"}
+         "resolution": "Resolution", "fps": "Frame rate", "bitrate": "Bitrate", "seconds": "Stream length", "chaos": "Chaos", "tier": "Battery"}
 # Run A and run B: blue and orange, apart for color-blind readers too; named by their code (a_id, b_id).
 A_COLOR, B_COLOR, NO_DATA_COLOR = "#3987e5", "#d95926", "#5a5f66"
 # Moonshine's frame stages in pipeline order, a color each; A's blue and B's orange go to the two thinnest.

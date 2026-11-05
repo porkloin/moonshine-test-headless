@@ -74,6 +74,21 @@
 #                       failures are in the checks
 #   -h, --help          this text
 #
+# Through podman: podman container runlabel LABEL IMAGE -- OPTIONS (everything after -- goes to this script;
+# --display prints the podman command instead of running it; a non-zero exit shows as 125).
+#   ghcr.io/porkloin/moonshine-test-headless
+#     run            this test on the host's AMD or Intel GPU (binds /dev/dri, keeps the render group)
+#     run-nvidia     the same on NVIDIA, through the container toolkit's CDI device
+#     run-remote     the same with Moonshine's ports published, for --client USER@HOST on another machine
+#     serve          build, then serve the Moonshine build on the GameStream ports for a real Moonlight client
+#                    (each workload is an app; type the PIN Moonlight shows into the terminal)
+#   ghcr.io/porkloin/moonshine-test-headless:view works on a finished run (paths under the current folder):
+#     run            open runs in a throwaway Grafana (Prometheus + Tempo): pass results.tar.gz, a run's folder
+#                    or its logs/otlp, one or more, and it prints the link to the test runs board over them
+#     summary        print summary.md again from a bundle's telemetry: runlabel summary IMAGE PATH [OTHER]
+#                    (the checks section isn't remade: the checks aren't in the telemetry)
+#     compact        write NAME-compact.tar.gz beside a bundle: the same summary from a smaller telemetry spool
+#
 # Results go to ./moonshine-test-<time>-<refs>/ in the folder you ran it from (/results here): summary.md (for the pull request: the
 # machines, the stream and the report card, from the telemetry), logs/ (with the telemetry in logs/otlp),
 # and all of it as results.tar.gz, the bundle to attach. With more than one --mode, each
@@ -976,6 +991,7 @@ run_info() {
 	[ -z "$client_rtt" ] || route+=", ${client_rtt} ms round trip"
 	[ -z "${commit[base/moonshine]:-}" ] || extra+=(--label "baseline=${code_id[base]}")
 	[ -z "${tier:-}" ] || extra+=(--label "tier=$tier")
+	if [ ${#chaos[@]} -gt 0 ]; then extra+=(--label "chaos=${chaos[*]}"); else extra+=(--label "chaos=drop one frame in 120"); fi
 	info --label role=run --label "code=${code_id[test]}" --label "ref=${code_ref[test]}" --label "commit=${commit[test/moonshine]}" \
 		"${extra[@]}" --label "route=$route" --label "resolution=${mw}x${mh}" --label "fps=$mfps" \
 		--label "bitrate=$(awk -v k="$mkbps" 'BEGIN {printf "%g Mb/s", k / 1000}')" --label "seconds=$seconds s"
