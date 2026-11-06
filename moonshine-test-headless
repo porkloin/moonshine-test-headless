@@ -959,7 +959,7 @@ $(printf '%q ' "${args[@]}")" || status=$?
 # the code and the stream's settings. Once per run, at its first traced stream.
 run_info() {
 	local b k side extra=()
-	b=$(basename "$out")
+	b=$(basename "$out") b=${b#moonshine-test-}
 	run_name="${code_id[test]} · ${b:4:2}-${b:6:2} ${b:9:2}:${b:11:2}Z"
 	# With several modes, each is a run of its own, for its own summary and report card.
 	[ ${#modes[@]} -le 1 ] || run_name+=" · $mlabel"

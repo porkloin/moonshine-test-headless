@@ -198,7 +198,7 @@ datasources:
     type: tempo
     uid: tempo
     url: http://127.0.0.1:$tempo_http_port
-    jsonData: {tracesToMetrics: {datasourceUid: prometheus}}
+    jsonData: {tracesToMetrics: {datasourceUid: prometheus}, streamingEnabled: {search: false, metrics: false}}
 EOF
 	GF_PATHS_DATA=$work/grafana/data GF_PATHS_LOGS=$work/grafana/logs GF_PATHS_PROVISIONING=$work/grafana/provisioning \
 	GF_SERVER_HTTP_ADDR=127.0.0.1 GF_SERVER_HTTP_PORT="$grafana_port" GF_AUTH_ANONYMOUS_ENABLED=true \
