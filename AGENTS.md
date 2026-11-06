@@ -128,6 +128,7 @@ Moonshine's config gets an app per workload of the run, titled with its id. A wo
 |---|---|---|---|
 | `vkcube` | `vkcube --wsi wayland` (its 500×500 window, scaled up by ferriscope) | clean, loss | Arch's vulkan-tools |
 | `glxgears` | `glxgears -fullscreen` (under Xwayland) | clean, loss | Arch's mesa-utils |
+| `glxgears:no-vsync` | `vblank_mode=0 glxgears -fullscreen` (under Xwayland) | clean, loss | the same, presenting with swap interval 0 instead of vsync |
 | `hdrneon` | `hdrneon --fullscreen --mode sdr` (`hdr10` with `--hdr`) | clean, loss | its latest GitHub release, checked against `SHA256SUMS` at image build |
 | `hdrneon-cycle` | `hdrneon --fullscreen --mode hdr10 --cycle 1`, always HDR | clean, loss | the same |
 | `clickflash` | `clickflash --fullscreen` | click | the same |

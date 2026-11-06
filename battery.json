@@ -69,6 +69,28 @@
       ],
       "baseline": true
     },
+    "glxgears:no-vsync": {
+      "title": "glxgears, no vsync",
+      "description": "glxgears with Mesa's vblank_mode=0: swaps are not aligned to the mode's frame pacing, so the app renders as fast as it can.",
+      "load": "low",
+      "command": [
+        "bash",
+        "-c",
+        "vblank_mode=0 exec /usr/bin/glxgears -fullscreen"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "smoothness",
+        "server_latency",
+        "loss_recovery",
+        "bitrate"
+      ],
+      "baseline": true
+    },
     "hdrneon": {
       "title": "hdrneon",
       "description": "Bright, saturated motion: a busy picture for the encoder, in SDR or (with --hdr) HDR10.",

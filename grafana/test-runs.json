@@ -341,6 +341,70 @@
         "regex": "/\\} (-?[0-9]+)/"
       },
       {
+        "name": "a_start_glxgears_no_vsync",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "hide": 2,
+        "refresh": 2,
+        "query": {
+          "query": "query_result(floor(min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range]))) or vector(0))",
+          "refId": "a_start_glxgears_no_vsync"
+        },
+        "definition": "query_result(floor(min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range]))) or vector(0))",
+        "regex": "/\\} (-?[0-9]+)/"
+      },
+      {
+        "name": "a_end_glxgears_no_vsync",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "hide": 2,
+        "refresh": 2,
+        "query": {
+          "query": "query_result(ceil(max(max_over_time(moonshine_client_stream_end_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range]))) or vector(0))",
+          "refId": "a_end_glxgears_no_vsync"
+        },
+        "definition": "query_result(ceil(max(max_over_time(moonshine_client_stream_end_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range]))) or vector(0))",
+        "regex": "/\\} (-?[0-9]+)/"
+      },
+      {
+        "name": "len_glxgears_no_vsync",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "hide": 2,
+        "refresh": 2,
+        "query": {
+          "query": "query_result((ceil(max(label_replace(max(max_over_time(moonshine_client_stream_end_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range])) - min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range])), \"r\", \"a\", \"\", \"\") or label_replace(max(max_over_time(moonshine_client_stream_end_seconds{run=\"$run_b\", side=\"$side_b\", workload=\"glxgears:no-vsync\"}[$__range])) - min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run_b\", side=\"$side_b\", workload=\"glxgears:no-vsync\"}[$__range])), \"r\", \"b\", \"\", \"\"))) + 5) or vector(5))",
+          "refId": "len_glxgears_no_vsync"
+        },
+        "definition": "query_result((ceil(max(label_replace(max(max_over_time(moonshine_client_stream_end_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range])) - min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range])), \"r\", \"a\", \"\", \"\") or label_replace(max(max_over_time(moonshine_client_stream_end_seconds{run=\"$run_b\", side=\"$side_b\", workload=\"glxgears:no-vsync\"}[$__range])) - min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run_b\", side=\"$side_b\", workload=\"glxgears:no-vsync\"}[$__range])), \"r\", \"b\", \"\", \"\"))) + 5) or vector(5))",
+        "regex": "/\\} (-?[0-9]+)/"
+      },
+      {
+        "name": "shift_glxgears_no_vsync",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "hide": 2,
+        "refresh": 2,
+        "query": {
+          "query": "query_result((floor(min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range]))) - floor(min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run_b\", side=\"$side_b\", workload=\"glxgears:no-vsync\"}[$__range])))) or vector(0))",
+          "refId": "shift_glxgears_no_vsync"
+        },
+        "definition": "query_result((floor(min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run\", side=\"$side\", workload=\"glxgears:no-vsync\"}[$__range]))) - floor(min(min_over_time(moonshine_client_stream_start_seconds{run=\"$run_b\", side=\"$side_b\", workload=\"glxgears:no-vsync\"}[$__range])))) or vector(0))",
+        "regex": "/\\} (-?[0-9]+)/"
+      },
+      {
         "name": "a_start_hdrneon",
         "type": "query",
         "datasource": {
@@ -7163,7 +7227,7 @@
     },
     {
       "type": "row",
-      "title": "hdrneon",
+      "title": "glxgears, no vsync",
       "collapsed": true,
       "panels": [
         {
@@ -7180,7 +7244,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", result!=\"ok\"}[$__range])) or vector(0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7192,7 +7256,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7280,7 +7344,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or vector(0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7292,7 +7356,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7380,7 +7444,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) * $fps",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7392,7 +7456,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7480,7 +7544,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / $fps",
+              "expr": "100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) / $fps",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7492,7 +7556,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) / $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7580,7 +7644,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7592,7 +7656,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7680,7 +7744,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) * $fps",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7692,7 +7756,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7780,7 +7844,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7792,7 +7856,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7880,7 +7944,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * max(last_over_time(moonshine_client_bitrate_peak_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) / max(last_over_time(moonshine_client_bitrate_requested_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))",
+              "expr": "100 * max(last_over_time(moonshine_client_bitrate_peak_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) / max(last_over_time(moonshine_client_bitrate_requested_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7892,7 +7956,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * max(last_over_time(moonshine_client_bitrate_peak_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) / max(last_over_time(moonshine_client_bitrate_requested_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * max(last_over_time(moonshine_client_bitrate_peak_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) / max(last_over_time(moonshine_client_bitrate_requested_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7980,7 +8044,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "label_replace(100 * histogram_fraction(0 / $fps, 0.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(0.1 / $fps, 0.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.1\", \"\", \"\") or label_replace(100 * histogram_fraction(0.2 / $fps, 0.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.2\", \"\", \"\") or label_replace(100 * histogram_fraction(0.3 / $fps, 0.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.3\", \"\", \"\") or label_replace(100 * histogram_fraction(0.4 / $fps, 0.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.4\", \"\", \"\") or label_replace(100 * histogram_fraction(0.5 / $fps, 0.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.5\", \"\", \"\") or label_replace(100 * histogram_fraction(0.6 / $fps, 0.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.6\", \"\", \"\") or label_replace(100 * histogram_fraction(0.7 / $fps, 0.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.7\", \"\", \"\") or label_replace(100 * histogram_fraction(0.8 / $fps, 0.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.8\", \"\", \"\") or label_replace(100 * histogram_fraction(0.9 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.9\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 1.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.1 / $fps, 1.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.2 / $fps, 1.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.2\", \"\", \"\") or label_replace(100 * histogram_fraction(1.3 / $fps, 1.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.3\", \"\", \"\") or label_replace(100 * histogram_fraction(1.4 / $fps, 1.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.4\", \"\", \"\") or label_replace(100 * histogram_fraction(1.5 / $fps, 1.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.5\", \"\", \"\") or label_replace(100 * histogram_fraction(1.6 / $fps, 1.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.6\", \"\", \"\") or label_replace(100 * histogram_fraction(1.7 / $fps, 1.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.7\", \"\", \"\") or label_replace(100 * histogram_fraction(1.8 / $fps, 1.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.8\", \"\", \"\") or label_replace(100 * histogram_fraction(1.9 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.9\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 2.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.1 / $fps, 2.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.1\", \"\", \"\") or label_replace(100 * histogram_fraction(2.2 / $fps, 2.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.3 / $fps, 2.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.3\", \"\", \"\") or label_replace(100 * histogram_fraction(2.4 / $fps, 2.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.4\", \"\", \"\") or label_replace(100 * histogram_fraction(2.5 / $fps, 2.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.5\", \"\", \"\") or label_replace(100 * histogram_fraction(2.6 / $fps, 2.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.6\", \"\", \"\") or label_replace(100 * histogram_fraction(2.7 / $fps, 2.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.7\", \"\", \"\") or label_replace(100 * histogram_fraction(2.8 / $fps, 2.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.8\", \"\", \"\") or label_replace(100 * histogram_fraction(2.9 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.9\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, +Inf, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"3\", \"\", \"\")",
+              "expr": "label_replace(100 * histogram_fraction(0 / $fps, 0.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(0.1 / $fps, 0.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.1\", \"\", \"\") or label_replace(100 * histogram_fraction(0.2 / $fps, 0.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.2\", \"\", \"\") or label_replace(100 * histogram_fraction(0.3 / $fps, 0.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.3\", \"\", \"\") or label_replace(100 * histogram_fraction(0.4 / $fps, 0.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.4\", \"\", \"\") or label_replace(100 * histogram_fraction(0.5 / $fps, 0.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.5\", \"\", \"\") or label_replace(100 * histogram_fraction(0.6 / $fps, 0.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.6\", \"\", \"\") or label_replace(100 * histogram_fraction(0.7 / $fps, 0.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.7\", \"\", \"\") or label_replace(100 * histogram_fraction(0.8 / $fps, 0.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.8\", \"\", \"\") or label_replace(100 * histogram_fraction(0.9 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.9\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 1.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.1 / $fps, 1.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.2 / $fps, 1.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.2\", \"\", \"\") or label_replace(100 * histogram_fraction(1.3 / $fps, 1.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.3\", \"\", \"\") or label_replace(100 * histogram_fraction(1.4 / $fps, 1.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.4\", \"\", \"\") or label_replace(100 * histogram_fraction(1.5 / $fps, 1.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.5\", \"\", \"\") or label_replace(100 * histogram_fraction(1.6 / $fps, 1.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.6\", \"\", \"\") or label_replace(100 * histogram_fraction(1.7 / $fps, 1.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.7\", \"\", \"\") or label_replace(100 * histogram_fraction(1.8 / $fps, 1.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.8\", \"\", \"\") or label_replace(100 * histogram_fraction(1.9 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.9\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 2.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.1 / $fps, 2.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.1\", \"\", \"\") or label_replace(100 * histogram_fraction(2.2 / $fps, 2.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.3 / $fps, 2.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.3\", \"\", \"\") or label_replace(100 * histogram_fraction(2.4 / $fps, 2.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.4\", \"\", \"\") or label_replace(100 * histogram_fraction(2.5 / $fps, 2.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.5\", \"\", \"\") or label_replace(100 * histogram_fraction(2.6 / $fps, 2.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.6\", \"\", \"\") or label_replace(100 * histogram_fraction(2.7 / $fps, 2.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.7\", \"\", \"\") or label_replace(100 * histogram_fraction(2.8 / $fps, 2.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.8\", \"\", \"\") or label_replace(100 * histogram_fraction(2.9 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.9\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, +Inf, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"3\", \"\", \"\")",
               "legendFormat": "",
               "refId": "A",
               "format": "table",
@@ -7992,7 +8056,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(label_replace(100 * histogram_fraction(0 / $fps, 0.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(0.1 / $fps, 0.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.1\", \"\", \"\") or label_replace(100 * histogram_fraction(0.2 / $fps, 0.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.2\", \"\", \"\") or label_replace(100 * histogram_fraction(0.3 / $fps, 0.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.3\", \"\", \"\") or label_replace(100 * histogram_fraction(0.4 / $fps, 0.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.4\", \"\", \"\") or label_replace(100 * histogram_fraction(0.5 / $fps, 0.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.5\", \"\", \"\") or label_replace(100 * histogram_fraction(0.6 / $fps, 0.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.6\", \"\", \"\") or label_replace(100 * histogram_fraction(0.7 / $fps, 0.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.7\", \"\", \"\") or label_replace(100 * histogram_fraction(0.8 / $fps, 0.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.8\", \"\", \"\") or label_replace(100 * histogram_fraction(0.9 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.9\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 1.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.1 / $fps, 1.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.2 / $fps, 1.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.2\", \"\", \"\") or label_replace(100 * histogram_fraction(1.3 / $fps, 1.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.3\", \"\", \"\") or label_replace(100 * histogram_fraction(1.4 / $fps, 1.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.4\", \"\", \"\") or label_replace(100 * histogram_fraction(1.5 / $fps, 1.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.5\", \"\", \"\") or label_replace(100 * histogram_fraction(1.6 / $fps, 1.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.6\", \"\", \"\") or label_replace(100 * histogram_fraction(1.7 / $fps, 1.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.7\", \"\", \"\") or label_replace(100 * histogram_fraction(1.8 / $fps, 1.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.8\", \"\", \"\") or label_replace(100 * histogram_fraction(1.9 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.9\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 2.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.1 / $fps, 2.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.1\", \"\", \"\") or label_replace(100 * histogram_fraction(2.2 / $fps, 2.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.3 / $fps, 2.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.3\", \"\", \"\") or label_replace(100 * histogram_fraction(2.4 / $fps, 2.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.4\", \"\", \"\") or label_replace(100 * histogram_fraction(2.5 / $fps, 2.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.5\", \"\", \"\") or label_replace(100 * histogram_fraction(2.6 / $fps, 2.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.6\", \"\", \"\") or label_replace(100 * histogram_fraction(2.7 / $fps, 2.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.7\", \"\", \"\") or label_replace(100 * histogram_fraction(2.8 / $fps, 2.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.8\", \"\", \"\") or label_replace(100 * histogram_fraction(2.9 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.9\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, +Inf, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"3\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(label_replace(100 * histogram_fraction(0 / $fps, 0.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(0.1 / $fps, 0.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.1\", \"\", \"\") or label_replace(100 * histogram_fraction(0.2 / $fps, 0.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.2\", \"\", \"\") or label_replace(100 * histogram_fraction(0.3 / $fps, 0.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.3\", \"\", \"\") or label_replace(100 * histogram_fraction(0.4 / $fps, 0.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.4\", \"\", \"\") or label_replace(100 * histogram_fraction(0.5 / $fps, 0.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.5\", \"\", \"\") or label_replace(100 * histogram_fraction(0.6 / $fps, 0.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.6\", \"\", \"\") or label_replace(100 * histogram_fraction(0.7 / $fps, 0.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.7\", \"\", \"\") or label_replace(100 * histogram_fraction(0.8 / $fps, 0.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.8\", \"\", \"\") or label_replace(100 * histogram_fraction(0.9 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"0.9\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 1.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.1 / $fps, 1.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.2 / $fps, 1.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.2\", \"\", \"\") or label_replace(100 * histogram_fraction(1.3 / $fps, 1.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.3\", \"\", \"\") or label_replace(100 * histogram_fraction(1.4 / $fps, 1.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.4\", \"\", \"\") or label_replace(100 * histogram_fraction(1.5 / $fps, 1.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.5\", \"\", \"\") or label_replace(100 * histogram_fraction(1.6 / $fps, 1.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.6\", \"\", \"\") or label_replace(100 * histogram_fraction(1.7 / $fps, 1.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.7\", \"\", \"\") or label_replace(100 * histogram_fraction(1.8 / $fps, 1.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.8\", \"\", \"\") or label_replace(100 * histogram_fraction(1.9 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"1.9\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 2.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.1 / $fps, 2.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.1\", \"\", \"\") or label_replace(100 * histogram_fraction(2.2 / $fps, 2.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.3 / $fps, 2.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.3\", \"\", \"\") or label_replace(100 * histogram_fraction(2.4 / $fps, 2.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.4\", \"\", \"\") or label_replace(100 * histogram_fraction(2.5 / $fps, 2.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.5\", \"\", \"\") or label_replace(100 * histogram_fraction(2.6 / $fps, 2.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.6\", \"\", \"\") or label_replace(100 * histogram_fraction(2.7 / $fps, 2.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.7\", \"\", \"\") or label_replace(100 * histogram_fraction(2.8 / $fps, 2.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.8\", \"\", \"\") or label_replace(100 * histogram_fraction(2.9 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"2.9\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, +Inf, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))), \"bin\", \"3\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "",
               "refId": "B",
               "format": "table",
@@ -8158,7 +8222,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "vector(time() - ${a_start_hdrneon})[${len_hdrneon}s:1s] @ ${a_end_hdrneon}",
+              "expr": "vector(time() - ${a_start_glxgears_no_vsync})[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
               "legendFormat": "seconds since start",
               "refId": "X",
               "format": "time_series",
@@ -8170,7 +8234,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[10s]))))[${len_hdrneon}s:1s] @ ${a_end_hdrneon}",
+              "expr": "(1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[10s]))))[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
               "legendFormat": "${a_id} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -8182,7 +8246,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "((1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[10s] offset ${shift_hdrneon}s)))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\")))[${len_hdrneon}s:1s] @ ${a_end_hdrneon}",
+              "expr": "((1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[10s] offset ${shift_glxgears_no_vsync}s)))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\")))[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
               "legendFormat": "${b_id} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -8298,7 +8362,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "label_replace(1000 * histogram_quantile(0.5, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p50\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.9, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p90\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.95, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p95\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.999, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99.9\", \"\", \"\")",
+              "expr": "label_replace(1000 * histogram_quantile(0.5, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p50\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.9, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p90\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.95, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p95\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p99\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.999, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p99.9\", \"\", \"\")",
               "legendFormat": "",
               "refId": "A",
               "format": "table",
@@ -8310,7 +8374,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(label_replace(1000 * histogram_quantile(0.5, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p50\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.9, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p90\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.95, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p95\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.999, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99.9\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(label_replace(1000 * histogram_quantile(0.5, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p50\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.9, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p90\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.95, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p95\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p99\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.999, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"q\", \"p99.9\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "",
               "refId": "B",
               "format": "table",
@@ -8425,7 +8489,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "label_replace(1000 * histogram_avg(sum by (stage) ((last_over_time(moonshine_frame_stage_duration_seconds{frame_kind=~\"delta|key\", stage!=\"consumer_queue\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"run\", \"${a_id} \u00b7 A\", \"\", \"\") or (label_replace(1000 * histogram_avg(sum by (stage) ((last_over_time(moonshine_frame_stage_duration_seconds{frame_kind=~\"delta|key\", stage!=\"consumer_queue\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"run\", \"${b_id} \u00b7 B\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "label_replace(1000 * histogram_avg(sum by (stage) ((last_over_time(moonshine_frame_stage_duration_seconds{frame_kind=~\"delta|key\", stage!=\"consumer_queue\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"run\", \"${a_id} \u00b7 A\", \"\", \"\") or (label_replace(1000 * histogram_avg(sum by (stage) ((last_over_time(moonshine_frame_stage_duration_seconds{frame_kind=~\"delta|key\", stage!=\"consumer_queue\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))), \"run\", \"${b_id} \u00b7 B\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "",
               "refId": "A",
               "format": "table",
@@ -8630,6 +8694,1825 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
+              "expr": "label_replace(100 * histogram_fraction(0 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, 4 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"3\", \"\", \"\") or label_replace(100 * histogram_fraction(4 / $fps, 5 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"4\", \"\", \"\") or label_replace(100 * histogram_fraction(5 / $fps, 6 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"5\", \"\", \"\") or label_replace(100 * histogram_fraction(6 / $fps, 7 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"6\", \"\", \"\") or label_replace(100 * histogram_fraction(7 / $fps, 8 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"7\", \"\", \"\") or label_replace(100 * histogram_fraction(8 / $fps, 9 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"8\", \"\", \"\") or label_replace(100 * histogram_fraction(9 / $fps, 10 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"9\", \"\", \"\") or label_replace(100 * histogram_fraction(10 / $fps, +Inf, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"10\", \"\", \"\")",
+              "legendFormat": "",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(label_replace(100 * histogram_fraction(0 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, 4 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"3\", \"\", \"\") or label_replace(100 * histogram_fraction(4 / $fps, 5 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"4\", \"\", \"\") or label_replace(100 * histogram_fraction(5 / $fps, 6 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"5\", \"\", \"\") or label_replace(100 * histogram_fraction(6 / $fps, 7 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"6\", \"\", \"\") or label_replace(100 * histogram_fraction(7 / $fps, 8 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"7\", \"\", \"\") or label_replace(100 * histogram_fraction(8 / $fps, 9 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"8\", \"\", \"\") or label_replace(100 * histogram_fraction(9 / $fps, 10 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"9\", \"\", \"\") or label_replace(100 * histogram_fraction(10 / $fps, +Inf, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))), \"bin\", \"10\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "bin",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Time 1": true,
+                  "Time 2": true
+                },
+                "renameByName": {
+                  "bin": "frames",
+                  "Value #A": "${a_id} \u00b7 A",
+                  "Value #B": "${b_id} \u00b7 B"
+                }
+              }
+            },
+            {
+              "id": "convertFieldType",
+              "options": {
+                "conversions": [
+                  {
+                    "targetField": "frames",
+                    "destinationType": "number"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "frames"
+                  }
+                ]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 1,
+              "min": 0,
+              "custom": {
+                "fillOpacity": 85,
+                "lineWidth": 0
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 A$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#3987e5"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 B$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d95926"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "frames"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "none"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "10": {
+                            "text": "more"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "frames",
+            "orientation": "vertical",
+            "groupWidth": 0.85,
+            "barWidth": 0.95,
+            "showValue": "never",
+            "xTickLabelSpacing": 60,
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 119,
+            "w": 8,
+            "h": 8
+          },
+          "id": 76
+        },
+        {
+          "type": "trend",
+          "title": "Bitrate over time",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "Bits the client received per second, mean, clean streams. Dashed: the bitrate asked for (run A). Seconds since the workload's first frame in run A; a point a second, each over the 10 s before it.",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "vector(time() - ${a_start_glxgears_no_vsync})[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
+              "legendFormat": "seconds since start",
+              "refId": "X",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_avg(sum(rate(moonshine_client_bitrate_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[10s]))))[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
+              "legendFormat": "${a_id} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "((histogram_avg(sum(rate(moonshine_client_bitrate_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[10s] offset ${shift_glxgears_no_vsync}s)))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\")))[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
+              "legendFormat": "${b_id} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(max(moonshine_client_bitrate_requested_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}))[${len_glxgears_no_vsync}s:1s] @ ${a_end_glxgears_no_vsync}",
+              "legendFormat": "requested",
+              "refId": "R",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "Time",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "min": 0,
+              "custom": {
+                "lineWidth": 2,
+                "showPoints": "auto",
+                "spanNulls": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 A$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#3987e5"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 B$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d95926"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "seconds since start"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "suffix: s"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "requested"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#5a5f66"
+                    }
+                  },
+                  {
+                    "id": "custom.lineStyle",
+                    "value": {
+                      "fill": "dash",
+                      "dash": [
+                        6,
+                        4
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.showPoints",
+                    "value": "never"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "seconds since start",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 119,
+            "w": 8,
+            "h": 8
+          },
+          "id": 77
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 100,
+        "w": 24,
+        "h": 1
+      },
+      "id": 63
+    },
+    {
+      "type": "row",
+      "title": "hdrneon",
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Decode errors",
+          "description": "Frames the client failed to decode, or decoded corrupt, on every stream.\n\nGreen \u2264 0, yellow \u2264 0, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or vector(0)",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1e-09
+                  },
+                  {
+                    "color": "red",
+                    "value": 1e-09
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 128,
+            "w": 4,
+            "h": 5
+          },
+          "id": 79
+        },
+        {
+          "type": "stat",
+          "title": "Lost frames",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or vector(0)",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1e-09
+                  },
+                  {
+                    "color": "red",
+                    "value": 3.000000001
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 128,
+            "w": 4,
+            "h": 5
+          },
+          "id": 80
+        },
+        {
+          "type": "stat",
+          "title": "Frame pacing p99",
+          "description": "The 99th percentile of the time between frames arriving at the client on clean streams, in frame intervals: 1 is perfect pacing.\n\nGreen \u2264 1.1 frames, yellow \u2264 1.5 frames, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) * $fps",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1.1000000010000002
+                  },
+                  {
+                    "color": "red",
+                    "value": 1.500000001
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 128,
+            "w": 4,
+            "h": 5
+          },
+          "id": 81
+        },
+        {
+          "type": "stat",
+          "title": "Delivered frame rate",
+          "description": "Frames the client received per second on clean streams, as a share of the stream's frame rate.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / $fps",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 90
+                  },
+                  {
+                    "color": "green",
+                    "value": 99
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 128,
+            "w": 4,
+            "h": 5
+          },
+          "id": 82
+        },
+        {
+          "type": "stat",
+          "title": "Host latency p99",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 3.000000001
+                  },
+                  {
+                    "color": "red",
+                    "value": 8.000000001
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 128,
+            "w": 4,
+            "h": 5
+          },
+          "id": 83
+        },
+        {
+          "type": "stat",
+          "title": "Recovery time p95",
+          "description": "The 95th percentile of how long the picture stood still after a lost frame, until a frame recovered it, in frame intervals.\n\nGreen \u2264 3 frames, yellow \u2264 8 frames, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * $fps",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 3.000000001
+                  },
+                  {
+                    "color": "red",
+                    "value": 8.000000001
+                  }
+                ]
+              },
+              "noValue": "no loss test",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no loss test",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 128,
+            "w": 4,
+            "h": 5
+          },
+          "id": 84
+        },
+        {
+          "type": "stat",
+          "title": "RFI recovery rate",
+          "description": "The share of lost frames the stream recovered from with reference frame invalidation (RFI) instead of a keyframe.\n\nGreen \u2265 95%, yellow \u2265 50%, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 50
+                  },
+                  {
+                    "color": "green",
+                    "value": 95
+                  }
+                ]
+              },
+              "noValue": "no loss test",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no loss test",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 133,
+            "w": 12,
+            "h": 5
+          },
+          "id": 85
+        },
+        {
+          "type": "stat",
+          "title": "Peak bitrate",
+          "description": "The busiest one-second window of bits the client received, as a share of the bitrate the stream asked for.\n\nGreen \u2264 110%, yellow \u2264 150%, red beyond. The thresholds are in targets.json.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * max(last_over_time(moonshine_client_bitrate_peak_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) / max(last_over_time(moonshine_client_bitrate_requested_bit_per_second{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * max(last_over_time(moonshine_client_bitrate_peak_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) / max(last_over_time(moonshine_client_bitrate_requested_bit_per_second{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 110.000000001
+                  },
+                  {
+                    "color": "red",
+                    "value": 150.000000001
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 133,
+            "w": 12,
+            "h": 5
+          },
+          "id": 86
+        },
+        {
+          "type": "barchart",
+          "title": "Frame pacing",
+          "description": "The time between frames arriving at the client, in frame intervals, clean streams: share of frames per tenth of a frame, on a log scale so stray frames show. A smooth stream is one bar at 1; bars near 0 are frames arriving bunched, bars at 2 and up are stutters.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "label_replace(100 * histogram_fraction(0 / $fps, 0.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(0.1 / $fps, 0.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.1\", \"\", \"\") or label_replace(100 * histogram_fraction(0.2 / $fps, 0.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.2\", \"\", \"\") or label_replace(100 * histogram_fraction(0.3 / $fps, 0.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.3\", \"\", \"\") or label_replace(100 * histogram_fraction(0.4 / $fps, 0.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.4\", \"\", \"\") or label_replace(100 * histogram_fraction(0.5 / $fps, 0.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.5\", \"\", \"\") or label_replace(100 * histogram_fraction(0.6 / $fps, 0.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.6\", \"\", \"\") or label_replace(100 * histogram_fraction(0.7 / $fps, 0.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.7\", \"\", \"\") or label_replace(100 * histogram_fraction(0.8 / $fps, 0.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.8\", \"\", \"\") or label_replace(100 * histogram_fraction(0.9 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.9\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 1.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.1 / $fps, 1.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.2 / $fps, 1.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.2\", \"\", \"\") or label_replace(100 * histogram_fraction(1.3 / $fps, 1.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.3\", \"\", \"\") or label_replace(100 * histogram_fraction(1.4 / $fps, 1.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.4\", \"\", \"\") or label_replace(100 * histogram_fraction(1.5 / $fps, 1.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.5\", \"\", \"\") or label_replace(100 * histogram_fraction(1.6 / $fps, 1.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.6\", \"\", \"\") or label_replace(100 * histogram_fraction(1.7 / $fps, 1.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.7\", \"\", \"\") or label_replace(100 * histogram_fraction(1.8 / $fps, 1.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.8\", \"\", \"\") or label_replace(100 * histogram_fraction(1.9 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.9\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 2.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.1 / $fps, 2.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.1\", \"\", \"\") or label_replace(100 * histogram_fraction(2.2 / $fps, 2.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.3 / $fps, 2.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.3\", \"\", \"\") or label_replace(100 * histogram_fraction(2.4 / $fps, 2.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.4\", \"\", \"\") or label_replace(100 * histogram_fraction(2.5 / $fps, 2.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.5\", \"\", \"\") or label_replace(100 * histogram_fraction(2.6 / $fps, 2.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.6\", \"\", \"\") or label_replace(100 * histogram_fraction(2.7 / $fps, 2.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.7\", \"\", \"\") or label_replace(100 * histogram_fraction(2.8 / $fps, 2.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.8\", \"\", \"\") or label_replace(100 * histogram_fraction(2.9 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.9\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, +Inf, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"3\", \"\", \"\")",
+              "legendFormat": "",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(label_replace(100 * histogram_fraction(0 / $fps, 0.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(0.1 / $fps, 0.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.1\", \"\", \"\") or label_replace(100 * histogram_fraction(0.2 / $fps, 0.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.2\", \"\", \"\") or label_replace(100 * histogram_fraction(0.3 / $fps, 0.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.3\", \"\", \"\") or label_replace(100 * histogram_fraction(0.4 / $fps, 0.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.4\", \"\", \"\") or label_replace(100 * histogram_fraction(0.5 / $fps, 0.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.5\", \"\", \"\") or label_replace(100 * histogram_fraction(0.6 / $fps, 0.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.6\", \"\", \"\") or label_replace(100 * histogram_fraction(0.7 / $fps, 0.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.7\", \"\", \"\") or label_replace(100 * histogram_fraction(0.8 / $fps, 0.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.8\", \"\", \"\") or label_replace(100 * histogram_fraction(0.9 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"0.9\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 1.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.1 / $fps, 1.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.1\", \"\", \"\") or label_replace(100 * histogram_fraction(1.2 / $fps, 1.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.2\", \"\", \"\") or label_replace(100 * histogram_fraction(1.3 / $fps, 1.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.3\", \"\", \"\") or label_replace(100 * histogram_fraction(1.4 / $fps, 1.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.4\", \"\", \"\") or label_replace(100 * histogram_fraction(1.5 / $fps, 1.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.5\", \"\", \"\") or label_replace(100 * histogram_fraction(1.6 / $fps, 1.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.6\", \"\", \"\") or label_replace(100 * histogram_fraction(1.7 / $fps, 1.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.7\", \"\", \"\") or label_replace(100 * histogram_fraction(1.8 / $fps, 1.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.8\", \"\", \"\") or label_replace(100 * histogram_fraction(1.9 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"1.9\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 2.1 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.1 / $fps, 2.2 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.1\", \"\", \"\") or label_replace(100 * histogram_fraction(2.2 / $fps, 2.3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.2\", \"\", \"\") or label_replace(100 * histogram_fraction(2.3 / $fps, 2.4 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.3\", \"\", \"\") or label_replace(100 * histogram_fraction(2.4 / $fps, 2.5 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.4\", \"\", \"\") or label_replace(100 * histogram_fraction(2.5 / $fps, 2.6 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.5\", \"\", \"\") or label_replace(100 * histogram_fraction(2.6 / $fps, 2.7 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.6\", \"\", \"\") or label_replace(100 * histogram_fraction(2.7 / $fps, 2.8 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.7\", \"\", \"\") or label_replace(100 * histogram_fraction(2.8 / $fps, 2.9 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.8\", \"\", \"\") or label_replace(100 * histogram_fraction(2.9 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"2.9\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, +Inf, sum(last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))), \"bin\", \"3\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "bin",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Time 1": true,
+                  "Time 2": true
+                },
+                "renameByName": {
+                  "bin": "frames",
+                  "Value #A": "${a_id} \u00b7 A",
+                  "Value #B": "${b_id} \u00b7 B"
+                }
+              }
+            },
+            {
+              "id": "convertFieldType",
+              "options": {
+                "conversions": [
+                  {
+                    "targetField": "frames",
+                    "destinationType": "number"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "frames"
+                  }
+                ]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 1,
+              "min": null,
+              "custom": {
+                "fillOpacity": 85,
+                "lineWidth": 0,
+                "scaleDistribution": {
+                  "type": "log",
+                  "log": 10
+                }
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 A$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#3987e5"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 B$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d95926"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "frames"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "none"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 1
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "3": {
+                            "text": "more"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "frames",
+            "orientation": "vertical",
+            "groupWidth": 0.85,
+            "barWidth": 0.95,
+            "showValue": "never",
+            "xTickLabelSpacing": 60,
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 138,
+            "w": 8,
+            "h": 8
+          },
+          "id": 87
+        },
+        {
+          "type": "trend",
+          "title": "Frame pacing p99 over time",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "description": "The time between frames arriving at the client, p99, clean streams. Seconds since the workload's first frame in run A; a point a second, each over the 10 s before it.",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "vector(time() - ${a_start_hdrneon})[${len_hdrneon}s:1s] @ ${a_end_hdrneon}",
+              "legendFormat": "seconds since start",
+              "refId": "X",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[10s]))))[${len_hdrneon}s:1s] @ ${a_end_hdrneon}",
+              "legendFormat": "${a_id} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "((1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[10s] offset ${shift_hdrneon}s)))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\")))[${len_hdrneon}s:1s] @ ${a_end_hdrneon}",
+              "legendFormat": "${b_id} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "Time",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "min": 0,
+              "custom": {
+                "lineWidth": 2,
+                "showPoints": "auto",
+                "spanNulls": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 A$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#3987e5"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 B$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d95926"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "seconds since start"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "suffix: s"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "seconds since start",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 138,
+            "w": 8,
+            "h": 8
+          },
+          "id": 88
+        },
+        {
+          "type": "barchart",
+          "title": "Host latency",
+          "description": "Moonshine's time on the host from capturing a frame to sending its last packet.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "label_replace(1000 * histogram_quantile(0.5, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p50\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.9, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p90\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.95, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p95\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.999, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99.9\", \"\", \"\")",
+              "legendFormat": "",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(label_replace(1000 * histogram_quantile(0.5, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p50\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.9, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p90\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.95, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p95\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99\", \"\", \"\") or label_replace(1000 * histogram_quantile(0.999, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"q\", \"p99.9\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "joinByField",
+              "options": {
+                "byField": "q",
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Time 1": true,
+                  "Time 2": true
+                },
+                "renameByName": {
+                  "Value #A": "${a_id} \u00b7 A",
+                  "Value #B": "${b_id} \u00b7 B"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "q"
+                  }
+                ]
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 A$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#3987e5"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* \u00b7 B$"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d95926"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "q",
+            "orientation": "vertical",
+            "groupWidth": 0.7,
+            "barWidth": 0.9,
+            "xTickLabelRotation": 0,
+            "showValue": "never",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 138,
+            "w": 8,
+            "h": 8
+          },
+          "id": 89
+        },
+        {
+          "type": "barchart",
+          "title": "Host latency by stage",
+          "description": "Moonshine's mean time per stage of a frame on the host, from capture to its last packet sent, in pipeline order; the bar's length is the mean total. consumer_queue is part of encode_wait, so it's left out.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "label_replace(1000 * histogram_avg(sum by (stage) ((last_over_time(moonshine_frame_stage_duration_seconds{frame_kind=~\"delta|key\", stage!=\"consumer_queue\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"run\", \"${a_id} \u00b7 A\", \"\", \"\") or (label_replace(1000 * histogram_avg(sum by (stage) ((last_over_time(moonshine_frame_stage_duration_seconds{frame_kind=~\"delta|key\", stage!=\"consumer_queue\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))), \"run\", \"${b_id} \u00b7 B\", \"\", \"\")) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "",
+              "refId": "A",
+              "format": "table",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "transformations": [
+            {
+              "id": "groupingToMatrix",
+              "options": {
+                "columnField": "stage",
+                "rowField": "run",
+                "valueField": "Value"
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "run\\stage": "run"
+                },
+                "indexByName": {
+                  "run\\stage": 0,
+                  "channel_wait": 1,
+                  "import": 2,
+                  "convert": 3,
+                  "submit": 4,
+                  "encode_wait": 5,
+                  "packetize": 6,
+                  "send": 7,
+                  "unaccounted": 8
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "decimals": 2,
+              "custom": {
+                "fillOpacity": 85,
+                "lineWidth": 0
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "channel_wait"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#008300"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "import"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d55181"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "convert"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#c98500"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "submit"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#199e70"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "encode_wait"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#9085e9"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "packetize"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#e66767"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "send"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#3987e5"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "unaccounted"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "#d95926"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "xField": "run",
+            "orientation": "horizontal",
+            "stacking": "normal",
+            "barWidth": 0.5,
+            "showValue": "never",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 146,
+            "w": 8,
+            "h": 8
+          },
+          "id": 90
+        },
+        {
+          "type": "barchart",
+          "title": "Recovery time",
+          "description": "How long the picture stood still after a lost frame, until a frame recovered it, in frame intervals: share of freezes per frame.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
               "expr": "label_replace(100 * histogram_fraction(0 / $fps, 1 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"0\", \"\", \"\") or label_replace(100 * histogram_fraction(1 / $fps, 2 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"1\", \"\", \"\") or label_replace(100 * histogram_fraction(2 / $fps, 3 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"2\", \"\", \"\") or label_replace(100 * histogram_fraction(3 / $fps, 4 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"3\", \"\", \"\") or label_replace(100 * histogram_fraction(4 / $fps, 5 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"4\", \"\", \"\") or label_replace(100 * histogram_fraction(5 / $fps, 6 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"5\", \"\", \"\") or label_replace(100 * histogram_fraction(6 / $fps, 7 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"6\", \"\", \"\") or label_replace(100 * histogram_fraction(7 / $fps, 8 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"7\", \"\", \"\") or label_replace(100 * histogram_fraction(8 / $fps, 9 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"8\", \"\", \"\") or label_replace(100 * histogram_fraction(9 / $fps, 10 / $fps, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"9\", \"\", \"\") or label_replace(100 * histogram_fraction(10 / $fps, +Inf, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))), \"bin\", \"10\", \"\", \"\")",
               "legendFormat": "",
               "refId": "A",
@@ -8784,11 +10667,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 119,
+            "y": 146,
             "w": 8,
             "h": 8
           },
-          "id": 76
+          "id": 91
         },
         {
           "type": "trend",
@@ -8965,20 +10848,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 119,
+            "y": 146,
             "w": 8,
             "h": 8
           },
-          "id": 77
+          "id": 92
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 100,
+        "y": 127,
         "w": 24,
         "h": 1
       },
-      "id": 63
+      "id": 78
     },
     {
       "type": "row",
@@ -9079,11 +10962,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 128,
+            "y": 155,
             "w": 4,
             "h": 5
           },
-          "id": 79
+          "id": 94
         },
         {
           "type": "stat",
@@ -9179,11 +11062,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 128,
+            "y": 155,
             "w": 4,
             "h": 5
           },
-          "id": 80
+          "id": 95
         },
         {
           "type": "stat",
@@ -9279,11 +11162,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 128,
+            "y": 155,
             "w": 4,
             "h": 5
           },
-          "id": 81
+          "id": 96
         },
         {
           "type": "stat",
@@ -9379,11 +11262,11 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 128,
+            "y": 155,
             "w": 4,
             "h": 5
           },
-          "id": 82
+          "id": 97
         },
         {
           "type": "stat",
@@ -9479,11 +11362,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 128,
+            "y": 155,
             "w": 4,
             "h": 5
           },
-          "id": 83
+          "id": 98
         },
         {
           "type": "barchart",
@@ -9653,20 +11536,20 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 133,
+            "y": 160,
             "w": 8,
             "h": 8
           },
-          "id": 84
+          "id": 99
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 127,
+        "y": 154,
         "w": 24,
         "h": 1
       },
-      "id": 78
+      "id": 93
     },
     {
       "type": "row",
@@ -9767,11 +11650,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 142,
+            "y": 169,
             "w": 8,
             "h": 5
           },
-          "id": 86
+          "id": 101
         },
         {
           "type": "stat",
@@ -9867,11 +11750,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 142,
+            "y": 169,
             "w": 8,
             "h": 5
           },
-          "id": 87
+          "id": 102
         },
         {
           "type": "stat",
@@ -9967,11 +11850,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 142,
+            "y": 169,
             "w": 8,
             "h": 5
           },
-          "id": 88
+          "id": 103
         },
         {
           "type": "barchart",
@@ -10144,11 +12027,11 @@
           "maxPerRow": 3,
           "gridPos": {
             "x": 0,
-            "y": 147,
+            "y": 174,
             "w": 8,
             "h": 8
           },
-          "id": 89
+          "id": 104
         },
         {
           "type": "barchart",
@@ -10271,20 +12154,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 147,
+            "y": 174,
             "w": 8,
             "h": 8
           },
-          "id": 90
+          "id": 105
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 141,
+        "y": 168,
         "w": 24,
         "h": 1
       },
-      "id": 85
+      "id": 100
     },
     {
       "type": "row",
@@ -10385,11 +12268,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 156,
+            "y": 183,
             "w": 8,
             "h": 5
           },
-          "id": 92
+          "id": 107
         },
         {
           "type": "stat",
@@ -10485,11 +12368,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 156,
+            "y": 183,
             "w": 8,
             "h": 5
           },
-          "id": 93
+          "id": 108
         },
         {
           "type": "stat",
@@ -10585,11 +12468,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 156,
+            "y": 183,
             "w": 8,
             "h": 5
           },
-          "id": 94
+          "id": 109
         },
         {
           "type": "barchart",
@@ -10762,11 +12645,11 @@
           "maxPerRow": 3,
           "gridPos": {
             "x": 0,
-            "y": 161,
+            "y": 188,
             "w": 8,
             "h": 8
           },
-          "id": 95
+          "id": 110
         },
         {
           "type": "barchart",
@@ -10889,20 +12772,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 161,
+            "y": 188,
             "w": 8,
             "h": 8
           },
-          "id": 96
+          "id": 111
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 155,
+        "y": 182,
         "w": 24,
         "h": 1
       },
-      "id": 91
+      "id": 106
     },
     {
       "type": "row",
@@ -11003,11 +12886,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 170,
+            "y": 197,
             "w": 4,
             "h": 5
           },
-          "id": 98
+          "id": 113
         },
         {
           "type": "stat",
@@ -11103,11 +12986,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 170,
+            "y": 197,
             "w": 4,
             "h": 5
           },
-          "id": 99
+          "id": 114
         },
         {
           "type": "stat",
@@ -11203,11 +13086,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 170,
+            "y": 197,
             "w": 4,
             "h": 5
           },
-          "id": 100
+          "id": 115
         },
         {
           "type": "stat",
@@ -11303,11 +13186,11 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 170,
+            "y": 197,
             "w": 4,
             "h": 5
           },
-          "id": 101
+          "id": 116
         },
         {
           "type": "stat",
@@ -11403,11 +13286,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 170,
+            "y": 197,
             "w": 4,
             "h": 5
           },
-          "id": 102
+          "id": 117
         },
         {
           "type": "stat",
@@ -11503,11 +13386,11 @@
           },
           "gridPos": {
             "x": 20,
-            "y": 170,
+            "y": 197,
             "w": 4,
             "h": 5
           },
-          "id": 103
+          "id": 118
         },
         {
           "type": "stat",
@@ -11603,11 +13486,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 175,
+            "y": 202,
             "w": 12,
             "h": 5
           },
-          "id": 104
+          "id": 119
         },
         {
           "type": "stat",
@@ -11703,11 +13586,11 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 175,
+            "y": 202,
             "w": 12,
             "h": 5
           },
-          "id": 105
+          "id": 120
         },
         {
           "type": "barchart",
@@ -11881,11 +13764,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 180,
+            "y": 207,
             "w": 8,
             "h": 8
           },
-          "id": 106
+          "id": 121
         },
         {
           "type": "trend",
@@ -12021,11 +13904,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 180,
+            "y": 207,
             "w": 8,
             "h": 8
           },
-          "id": 107
+          "id": 122
         },
         {
           "type": "barchart",
@@ -12148,11 +14031,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 180,
+            "y": 207,
             "w": 8,
             "h": 8
           },
-          "id": 108
+          "id": 123
         },
         {
           "type": "barchart",
@@ -12353,11 +14236,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 188,
+            "y": 215,
             "w": 8,
             "h": 8
           },
-          "id": 109
+          "id": 124
         },
         {
           "type": "barchart",
@@ -12527,20 +14410,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 188,
+            "y": 215,
             "w": 8,
             "h": 8
           },
-          "id": 110
+          "id": 125
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 169,
+        "y": 196,
         "w": 24,
         "h": 1
       },
-      "id": 97
+      "id": 112
     },
     {
       "type": "row",
@@ -12549,11 +14432,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 196,
+        "y": 223,
         "w": 24,
         "h": 1
       },
-      "id": 111
+      "id": 126
     },
     {
       "type": "stat",
@@ -12607,11 +14490,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 197,
+        "y": 224,
         "w": 8,
         "h": 4
       },
-      "id": 112
+      "id": 127
     },
     {
       "type": "stat",
@@ -12665,11 +14548,11 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 197,
+        "y": 224,
         "w": 8,
         "h": 4
       },
-      "id": 113
+      "id": 128
     },
     {
       "type": "stat",
@@ -12723,11 +14606,11 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 197,
+        "y": 224,
         "w": 8,
         "h": 4
       },
-      "id": 114
+      "id": 129
     },
     {
       "type": "row",
@@ -12736,11 +14619,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 201,
+        "y": 228,
         "w": 24,
         "h": 1
       },
-      "id": 115
+      "id": 130
     },
     {
       "type": "table",
@@ -12773,11 +14656,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 202,
+        "y": 229,
         "w": 12,
         "h": 12
       },
-      "id": 116
+      "id": 131
     },
     {
       "type": "table",
@@ -12816,11 +14699,11 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 202,
+        "y": 229,
         "w": 12,
         "h": 12
       },
-      "id": 117
+      "id": 132
     },
     {
       "type": "table",
@@ -12859,11 +14742,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 214,
+        "y": 241,
         "w": 24,
         "h": 12
       },
-      "id": 118
+      "id": 133
     }
   ],
   "links": [
