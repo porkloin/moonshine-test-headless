@@ -14,13 +14,13 @@
     },
     {
       "key": "frame_time_p99",
-      "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\"}[$__range]))) * $fps",
+      "expr": "quantile(0.5, histogram_quantile(0.99, sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\"}[$__range]))) * (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range])))))))",
       "empty": "not measured",
       "decimals": 2
     },
     {
       "key": "fps_delivered",
-      "expr": "100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\"}[$__range]))) / $fps",
+      "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range])))))), 1))",
       "empty": "not measured",
       "decimals": 1
     },
@@ -50,13 +50,13 @@
     },
     {
       "key": "keyframes_per_switch",
-      "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range])))) / (sum((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range])))) > 0)",
+      "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range]))) and on (stream_key) ((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range]))) > 0)) / (sum(((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range]))) > 0)) > 0)",
       "empty": "no HDR switch test",
       "decimals": 2
     },
     {
       "key": "load_fps",
-      "expr": "100 * histogram_count(sum(last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\", load=\"high\"}[$__range]))) / histogram_sum(sum(last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\", load=\"high\"}[$__range]))) / $fps",
+      "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\", load=\"high\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{{sel}, stream=\"clean\", load=\"high\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\", load=\"high\"}[$__range])))))), 1))",
       "empty": "no GPU-load test",
       "decimals": 1
     },

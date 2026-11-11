@@ -26,12 +26,12 @@
     "frame_time_p99": {
       "measure": "smoothness",
       "label": "frame pacing p99",
-      "what": "The 99th percentile of the time between frames arriving at the client on clean streams, in frame intervals: 1 is perfect pacing.",
+      "what": "The 99th percentile of the time between frames arriving at the client, in the frame intervals Moonshine sent at (1 is perfect pacing): each clean stream on its own, then the median stream.",
       "unit": "frame intervals",
       "better": "lower",
       "target": 1.1,
       "acceptable": 1.5,
-      "basis": "Gap between frame arrivals; one frame interval is perfect pacing. Rubylight reports 1.25 intervals on wired LAN, and loopback has no network to excuse more.",
+      "basis": "Gap between frame arrivals; one frame interval is perfect pacing. Rubylight reports 1.25 intervals on wired LAN, and loopback has no network to excuse more. Measured against the rate Moonshine sent at, so a game the GPU runs below the target rate isn't counted as stutter.",
       "see": [
         {
           "label": "Percentile",
@@ -53,12 +53,12 @@
     "fps_delivered": {
       "measure": "smoothness",
       "label": "delivered frame rate",
-      "what": "Frames the client received per second on clean streams, as a share of the stream's frame rate.",
-      "unit": "% of requested",
+      "what": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.",
+      "unit": "%",
       "better": "higher",
       "target": 99,
       "acceptable": 90,
-      "basis": "A host that can't keep up sends fewer, evenly spaced frames, which frame time alone misses.",
+      "basis": "Frames lost or held up between Moonshine and the decoder (network, client), which frame time alone misses. A game that renders below the stream's rate isn't a delivery problem; its rate shows in host timing.",
       "see": [
         {
           "label": "Frame rate",
@@ -74,7 +74,7 @@
       "better": "lower",
       "target": 3,
       "acceptable": 8,
-      "basis": "Mostly the encode, which scales with resolution, not frame rate. Other hosts report 0.45–4.4 ms.",
+      "basis": "Mostly the encode, which scales with resolution, not frame rate. Other hosts report 0.45–4.4 ms. The target is set from 1080p claims: at 4K the encode alone takes about 5–7 ms on RDNA 3 and 4 (henwen's 7900 XTX, rosso's 9070 XT, 2026-11-11).",
       "see": [
         {
           "label": "Percentile",
@@ -185,7 +185,7 @@
     "keyframes_per_switch": {
       "measure": "hdr_transitions",
       "label": "HDR switch keyframes",
-      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB).",
+      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched.",
       "unit": "",
       "better": "lower",
       "target": 0.7,
@@ -209,12 +209,12 @@
     "load_fps": {
       "measure": "load",
       "label": "FPS under GPU load",
-      "what": "Frames the client received per second while the GPU was under heavy load, as a share of the stream's frame rate.",
-      "unit": "% of requested",
+      "what": "Frames the client received per second on clean streams with the GPU under heavy load, as a share of the frames Moonshine sent.",
+      "unit": "%",
       "better": "higher",
       "target": 99,
       "acceptable": 90,
-      "basis": "The slowest codec's frame rate with the GPU busy. Other hosts report 85–100% under load, and as low as 42% before fixes.",
+      "basis": "The slowest codec's frame rate with the GPU busy. Other hosts report 85–100% under load, and as low as 42% before fixes. Measured against what Moonshine sent, so a GPU that can't run the game at the stream's rate isn't counted; Moonshine's own rate under load shows in host timing.",
       "see": [
         {
           "label": "Frame rate",
