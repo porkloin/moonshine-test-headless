@@ -54,9 +54,10 @@
 #   --mode MODE         the stream's resolution, frame rate and bitrate: WIDTHxHEIGHT@FPS[:KBPS], or a name from
 #                       the battery's modes (1080p60, 1440p120, 4k60, 4k120, 4k240, ...), e.g. 3840x2160@120:100000.
 #                       Repeatable: the whole run streams once per mode, each with its own summary (1080p60)
-#   --decode HOW        how the client decodes: hw (VAAPI: on another GPU than Moonshine's, such as an iGPU, when
-#                       one decodes the codec, else on Moonshine's GPU), sw (software, which can't keep up with
-#                       high modes), or a render node to decode on, e.g. /dev/dri/renderD129 (hw)
+#   --decode HOW        how the client decodes: hw (VAAPI: over loopback on Moonshine's own GPU, on a remote client
+#                       its GPU with the most video memory; codecs it doesn't decode are skipped), sw (software,
+#                       which can't keep up with high modes), or a render node to decode on, e.g.
+#                       /dev/dri/renderD129 (hw)
 #   --client USER@HOST  stream to the test client on another machine instead of over loopback: each stream runs the
 #                       client's container there over one SSH connection (asks for the password once; the machine
 #                       needs podman and render-group access), decoding on that machine's GPU. Use the run-remote
@@ -433,14 +434,40 @@ fi
 jq -r '.gpus[] | "    \(.device): \(.name)" + (if .va_driver == "" then ", no VAAPI" else ", VAAPI \(.va_driver), decodes \(.decodes | join(" "))" end)' \
 	<<< "$client_machine" 2>/dev/null || true
 
-# How the client decodes: it picks the VAAPI device itself (one that decodes the codec, another than Moonshine's GPU
-# over loopback, the most video memory), or software when none can; --decode sw or a render node overrides.
+# How the client decodes, picked once for the run: hw on Moonshine's own GPU over loopback (encode and decode on one
+# device, else the VAAPI GPU with the most video memory), on the remote's VAAPI GPU with the most video memory, or on
+# the render node given; software with sw or when no GPU has VAAPI (NVIDIA). dec_gpu is the decoding GPU's probe
+# entry ({} in software): the summary names it, and the codecs it doesn't decode are skipped.
+dec_gpu="{}"
 case $decode in
-hw) dec_args=(--decode hw); [ -n "$remote" ] || [ -z "$gpu_pci" ] || dec_args+=(--avoid-gpu "$gpu_pci") ;;
-sw) dec_args=(--decode full) ;;
-/dev/*) dec_args=(--decode hw --decode-device "$decode") ;;
+hw)
+	same_pci=$gpu_pci
+	[ -z "$remote" ] || same_pci=""
+	dec_gpu=$(jq -c --arg pci "$same_pci" '[.gpus[]? | select(.va_driver != "")] |
+		(map(select($pci != "" and .pci == $pci)) + [max_by(.vram_mb)])[0] // {}' <<< "$client_machine")
+	;;
+sw) ;;
+/dev/*)
+	dec_gpu=$(jq -c --arg dev "$decode" '[.gpus[]? | select(.device == $dev and .va_driver != "")][0] // {}' <<< "$client_machine")
+	[ "$dec_gpu" != "{}" ] || die "--decode $decode: the client's probe found no VAAPI driver on it (the GPUs above)"
+	;;
 *) die "--decode $decode: hw, sw or a render node" ;;
 esac
+dec_dev=$(jq -r '.device // ""' <<< "$dec_gpu")
+if [ -n "$dec_dev" ]; then
+	dec_args=(--decode hw --decode-device "$dec_dev")
+	echo "    decoding on $dec_dev, $(jq -r .name <<< "$dec_gpu")"
+else
+	dec_args=(--decode full)
+	echo "    decoding in software"
+fi
+
+# client_decodes CODEC HDR: whether the client's decoder takes CODEC in that dynamic range (software takes all).
+client_decodes() {
+	local need=$1
+	[ "$1" != hevc ] || [ "$2" = 0 ] || need=hevc10
+	[ -z "$dec_dev" ] || jq -e --arg c "$need" '.decodes | index($c) != null' <<< "$dec_gpu" > /dev/null
+}
 
 # --- Workload --------------------------------------------------------------------------------------------------
 
@@ -918,23 +945,27 @@ declare -A sdr_bit=([h264]=1 [hevc]=256 [av1]=65536) hdr_bit=([h264]=0 [hevc]=51
 list=${codecs//,/ }
 for codec in $list; do [ -n "${sdr_bit[$codec]+set}" ] || die "unknown codec $codec"; done
 
-# offered_codecs HDR: set `offered` to the codecs to stream in that dynamic range (1 for HDR), and note the ones
-# skipped, once each.
+# offered_codecs HDR: set `offered` to the codecs to stream in that dynamic range (1 for HDR): the ones Moonshine
+# offers and the client's decoder takes, so a codec neither can do in hardware stays out of the numbers. Notes the
+# ones skipped, once each.
 offered_codecs() {
 	local codec want=$1 range="" b
 	[ "$want" = 0 ] || range=" HDR"
 	offered=()
 	for codec in ${list:-h264 hevc av1}; do
 		if [ "$want" = 1 ]; then b=${hdr_bit[$codec]}; else b=${sdr_bit[$codec]}; fi
-		if (( (supported & b) != 0 )); then
+		if (( (supported & b) != 0 )) && client_decodes "$codec" "$want"; then
 			offered+=("$codec")
-		elif [ -z "${noted[$codec$range]:-}" ]; then
-			noted[$codec$range]=1
-			if [ "$want" = 1 ] && [ "$codec" = h264 ]; then
-				row "h264$range streams" skipped "HDR streams are HEVC or AV1"
-			else
-				row "$codec$range streams" skipped "Moonshine doesn't offer $codec$range on this GPU"
-			fi
+			continue
+		fi
+		[ -z "${noted[$codec$range]:-}" ] || continue
+		noted[$codec$range]=1
+		if [ "$want" = 1 ] && [ "$codec" = h264 ]; then
+			row "h264$range streams" skipped "HDR streams are HEVC or AV1"
+		elif (( (supported & b) == 0 )); then
+			row "$codec$range streams" skipped "Moonshine doesn't offer $codec$range on this GPU"
+		else
+			row "$codec$range streams" skipped "the client's $(jq -r .name <<< "$dec_gpu") doesn't decode $codec$range"
 		fi
 	done
 }
@@ -1011,14 +1042,17 @@ run_info() {
 					else (.kind // "") + (if .speed_mbps then ", \(.speed_mbps) Mb/s" else "" end) end] | join("; "))
 			] | .[] | "--label", .' <<< "$1"
 	}
-	# The host encodes on the GPU Vulkan named; the client decodes on its first GPU with VAAPI.
+	# The host encodes on the GPU Vulkan named; the client decodes on dec_gpu, or in software.
 	local host_other client_gpu client_driver client_other
 	host_other=$(jq -r --arg pci "$gpu_pci" '[.gpus[]? | select(.pci != $pci) | .name] | join("; ")' <<< "$host_machine")
 	mapfile -t k < <(machine "$host_machine" "$gpu" "$driver (Vulkan)" "$host_other")
 	info --label role=host "${k[@]}"
-	client_gpu=$(jq -r '[.gpus[]? | select(.va_driver != "")][0].name // ""' <<< "$client_machine")
-	client_driver=$(jq -r '[.gpus[]? | select(.va_driver != "")][0].va_driver // "" | if . != "" then . + " (VAAPI)" else . end' <<< "$client_machine")
-	client_other=$(jq -r --arg g "$client_gpu" '[.gpus[]? | select(.name != $g) | .name] | join("; ")' <<< "$client_machine")
+	client_gpu="software decoding" client_driver=""
+	if [ -n "$dec_dev" ]; then
+		client_gpu=$(jq -r .name <<< "$dec_gpu")
+		client_driver="$(jq -r .va_driver <<< "$dec_gpu") (VAAPI)"
+	fi
+	client_other=$(jq -r --arg dev "$dec_dev" '[.gpus[]? | select(.device != $dev) | .name] | join("; ")' <<< "$client_machine")
 	mapfile -t k < <(machine "$client_machine" "$client_gpu" "$client_driver" "$client_other")
 	info --label role=client "${k[@]}"
 	# The stream: the code, the baseline, the route between the machines (never an address) and the settings.
