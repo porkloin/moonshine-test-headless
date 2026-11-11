@@ -273,6 +273,8 @@ modes=()
 # telemetry, with the checks after its report card; without telemetry, the checks alone.
 finish_mode() {
 	mode_open=0
+	# A run that stopped in preflight (before /work was made) still gets its summary of the checks so far.
+	mkdir -p "$mwork"
 	checks_md > "$mwork/checks.md"
 	if [ $traces = 1 ] && [ -d /work/spool ]; then mkdir -p "$logs/otlp" && { cp -r --update=none /work/spool/. "$logs/otlp/" || true; }; fi
 	if [ -n "${otel:-}" ] && [ -n "$run_name" ] &&
@@ -370,12 +372,44 @@ ssh_opts=(-o ControlMaster=auto -o ControlPath=/tmp/mth-ssh-%C -o ControlPersist
 rsh() { ssh "${ssh_opts[@]}" -o BatchMode=yes "$remote" sh -s 2>> "$logs/remote.log" <<< "$1"; }
 remote_out='~/.cache/mth-client/out'
 
+# ssh_failed STDERR: say why the first SSH connection to the remote failed, in ssh's own words, and what to do.
+ssh_failed() {
+	local why hint host=${remote#*@}
+	why=$(grep -v -i -e '^warning: permanently added' -e '^[[:space:]]*$' <<< "$1" | tail -n 1)
+	case $1 in
+	*'REMOTE HOST IDENTIFICATION HAS CHANGED'* | *'Host key verification failed'*)
+		hint="$host's host key isn't the one this tool saw last time (reinstalled or rekeyed?). The container keeps its own
+known_hosts in the cache volume; forget the old key with:
+  podman run --rm -v moonshine-test-headless-cache:/cache --entrypoint ssh-keygen ghcr.io/porkloin/moonshine-test-headless -R $host -f /cache/ssh/known_hosts" ;;
+	*'Permission denied'*)
+		hint="$host refused the login. Either the password was wrong, or $host only takes keys: SSH runs inside the
+container, which can't use your SSH keys or agent, so $host needs password login (PasswordAuthentication yes in
+its sshd_config)." ;;
+	*'Connection closed by'* | *'Connection reset'*)
+		hint="$host hung up during the login: its sshd (or Tailscale SSH) may not take password logins for $remote, or
+the password was wrong too many times. Its log says which (journalctl -u sshd on $host)." ;;
+	*'Could not resolve'*)
+		hint="This container can't resolve $host; give its address instead (--client ${remote%@*}@ADDRESS)." ;;
+	*'timed out'* | *'No route to host'* | *'Connection refused'* | *'Network is unreachable'*)
+		hint="Nothing answered SSH at $host:22 from this machine; check that sshd runs there and the address is right." ;;
+	*)
+		hint="ssh's whole output is in logs/remote.log." ;;
+	esac
+	echo "moonshine-test-headless: can't ssh to $remote${why:+: $why}" >&2
+	sed 's/^/  /' <<< "$hint" >&2
+	exit 2
+}
+
 if [ -n "$remote" ]; then
 	say "Remote client $remote"
 	mkdir -p /cache/ssh
-	# ssh asks for the password on the terminal itself; its stderr (login-script noise) goes to the log.
-	ssh "${ssh_opts[@]}" "$remote" true 2>> "$logs/remote.log" ||
-		die "can't ssh to $remote (it asks for the password on this terminal, so run it interactively)"
+	[ -t 0 ] || die "--client asks for $remote's SSH password on the terminal, so run it interactively"
+	# ssh asks for the password on the terminal itself, not on stderr, so its stderr is only messages: kept for the
+	# log (login-script noise included), and for saying why it failed.
+	ssh_ok=1
+	ssh_err=$(ssh "${ssh_opts[@]}" "$remote" true 2>&1 > /dev/null) || ssh_ok=0
+	[ -z "$ssh_err" ] || printf '%s\n' "$ssh_err" >> "$logs/remote.log"
+	[ $ssh_ok = 1 ] || ssh_failed "$ssh_err"
 	# The address the client reached this machine from is the one it streams from.
 	host_addr=$(rsh 'echo $SSH_CONNECTION' | awk '{print $1}')
 	rsh 'command -v podman' > /dev/null || die "$remote has no podman; install it there (it runs the client's container)"
