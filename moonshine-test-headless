@@ -70,6 +70,10 @@
 #                       clamp Moonshine's video packet size: `max_packet_size = BYTES` under [stream.video] in
 #                       its config, both test and baseline (Moonshine's default: no clamp). Keeps the UDP
 #                       payloads under a tunnel's MTU, e.g. 1024 for Tailscale's 1280
+#   --moonshine-config KEY=VALUE
+#                       set KEY in the tested Moonshine's config (repeatable): a dotted path into its TOML, e.g.
+#                       stream.video.rate_control=vbr. VALUE is TOML (a number, true, [1, 2]), or else a string.
+#                       --baseline-moonshine-config does the same for the baseline's
 #   --accept-gravitymark-license
 #                       accept GravityMark's evaluation license without being asked, for runs without a terminal
 #   --log FILTER        log level for Moonshine, pixelforge and ferriscope: error, warn, info, debug or trace, or
@@ -109,7 +113,7 @@ say() { printf '\n==> %s\n' "$*"; }
 seconds=20 codecs="" stream=1 serve=0 strict=0 log_filter=info baseline=0 iterations=5 traces=1 refs=() base_refs=() chaos=()
 apps=() tier="" app_command="" accept_gravitymark=0 hdr=0 battery=/usr/share/moonshine-test-headless/battery.json
 targets=/usr/share/moonshine-test-headless/targets.json
-mode_args=() default_kbps="" max_packet_size="" decode=hw remote=""
+mode_args=() default_kbps="" max_packet_size="" decode=hw remote="" config_test=() config_base=()
 # The client image built from the same client as this image's own, when the image says.
 client_image=$(cat /usr/share/moonshine-test-headless/client-image 2>/dev/null || echo ghcr.io/porkloin/gamestream-test-client:latest)
 while [ $# -gt 0 ]; do
@@ -138,6 +142,8 @@ while [ $# -gt 0 ]; do
 	--client-image) client_image=${2:?--client-image needs an image}; shift 2 ;;
 	--bitrate) default_kbps=${2:?--bitrate needs a number}; [[ $default_kbps =~ ^[0-9]+$ ]] || die "--bitrate is in kb/s, e.g. 50000"; shift 2 ;;
 	--max-packet-size) max_packet_size=${2:?--max-packet-size needs a number}; [[ $max_packet_size =~ ^[0-9]+$ ]] || die "--max-packet-size is in bytes, e.g. 1024"; shift 2 ;;
+	--moonshine-config) config_test+=("${2:?--moonshine-config needs KEY=VALUE}"); shift 2 ;;
+	--baseline-moonshine-config) config_base+=("${2:?--baseline-moonshine-config needs KEY=VALUE}"); shift 2 ;;
 	--log) log_filter=${2:?--log needs a filter}; shift 2 ;;
 	--strict) strict=1; shift ;;
 	--serve) serve=1; shift ;;
@@ -823,6 +829,32 @@ build test || exit 1
 socket=/run/user/0/moonshine/stats.sock watcher=""
 has_socket() { [ -f "${dir[$1/moonshine]}/src/stats_socket.rs" ]; }
 
+# set_config FILE KEY=VALUE: set KEY (a dotted path: its table, then the key) in the TOML config FILE, replacing the
+# value the harness gave it. VALUE is TOML, or else taken as a string, so stream.video.rate_control=vbr works
+# without quotes (which runlabel would keep).
+set_config() {
+	local f=$1 key=${2%%=*} val=${2#*=} table="" name
+	[[ $2 == *=* && $key =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$ ]] ||
+		die "--moonshine-config takes KEY=VALUE, e.g. stream.video.rate_control=vbr (got '$2')"
+	name=${key##*.}
+	[ "$name" = "$key" ] || table=${key%.*}
+	python3 -c 'import sys, tomllib; tomllib.loads("v = " + sys.argv[1])' "$val" 2>/dev/null || val=$(jq -Rn --arg v "$val" '$v')
+	# Top-level keys go before the first table; a table's after its header, or in a new table at the end.
+	awk -v table="$table" -v name="$name" -v line="$name = $val" '
+		BEGIN { here = (table == "") }
+		/^\[/ {
+			if (here && !done) { print line; done = 1 }
+			here = ($0 == "[" table "]")
+			print
+			if (here && !done) { print line; done = 1 }
+			next
+		}
+		here && $0 ~ "^" name "[ \t]*=" { next }
+		{ print }
+		END { if (!done) printf "%s%s\n", (table == "" ? "" : "\n[" table "]\n"), line }' "$f" > "$f.new"
+	mv "$f.new" "$f"
+}
+
 # write_config SIDE: that side's Moonshine config, with an app per workload (titled with its id) and nothing scanned.
 # Prints its path.
 write_config() {
@@ -869,7 +901,12 @@ EOF
 	# The default ports need no section, but a packet-size clamp needs [stream.video] wherever it goes.
 	[ -z "$max_packet_size" ] || [ "$base_port" != 47989 ] ||
 		printf '\n[stream.video]\nmax_packet_size = %s\n' "$max_packet_size" >> "$f"
+	local -n overrides=config_$1
+	local o
+	for o in "${overrides[@]}"; do set_config "$f" "$o"; done
 	cp "$f" "$logs/"
+	python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$f" ||
+		die "--moonshine-config left the $1 side's Moonshine config invalid (logs/$(basename "$f"))"
 	echo "$f"
 }
 
@@ -1078,7 +1115,8 @@ run_info() {
 	info --label role=run --label "code=${code_id[test]}" --label "ref=${code_ref[test]}" --label "commit=${commit[test/moonshine]}" \
 		"${extra[@]}" --label "route=$route" --label "resolution=${mw}x${mh}" --label "fps=$mfps" \
 		--label "bitrate=$(awk -v k="$mkbps" 'BEGIN {printf "%g Mb/s", k / 1000}')" --label "seconds=$seconds s" \
-		${max_packet_size:+--label "max_packet_size=$max_packet_size B"}
+		${max_packet_size:+--label "max_packet_size=$max_packet_size B"} \
+		${config_test[0]:+--label "config=${config_test[*]}"} ${config_base[0]:+--label "baseline_config=${config_base[*]}"}
 }
 
 # traced stream ARGS...: a stream whose frames the client adds to their traces. A fresh key goes to Moonshine's side
