@@ -1242,23 +1242,33 @@ click_every=300
 click_seconds=$(( seconds > 60 ? seconds : 60 ))
 
 # click_row NAME CLIENT_JSON: a click-to-flash stream's row. ok when at least nine clicks in ten flashed and every
-# picture decoded.
+# picture decoded; a p95 over three times the median (frames held up on the way) is called out, not failed.
 click_row() {
 	local notes result=ok
 	notes=$(jq -r 'def ms: if . == null then "n/a" else (. * 10 | round / 10 | tostring) + " ms" end;
-		"click to flash median \(.click_ms_p50 | ms), p95 \(.click_ms_p95 | ms); \(.click_flashes) of \(.clicks) clicks flashed"' "$2")
+		"click to flash median \(.click_ms_p50 | ms), p95 \(.click_ms_p95 | ms); \(.click_flashes) of \(.clicks) clicks flashed"
+		+ (if .click_ms_p50 != null and .click_ms_p95 > 3 * .click_ms_p50 then "; slow tail: p95 over 3× the median, \(.missing) frames missing" else "" end)' "$2")
 	[ "$(jq '.click_flashes > 0 and .click_missed * 10 <= .clicks and .decode_errors + .corrupt == 0' "$2")" = true ] ||
 		result=FAIL
 	row "$1" $result "$notes"
 }
 
 # stream_row NAME CLIENT_JSON [WARMUP_S]: a stream's row. ok when frames came, none failed to decode or decoded
-# corrupt, and the stream wasn't stalled most of the time. The client counts the whole stream; with a warmup, the note
-# says the report card leaves its start out.
+# corrupt, and the picture wasn't frozen for half the stream or more. A freeze is a gap between frames of over three
+# frame intervals (the client's stalls). The client counts the whole stream; with a warmup, the note says the report
+# card leaves its start out. A failed row says why.
 stream_row() {
-	local notes result=ok
-	notes=$(jq -r '(if .dropped_frames > 0 then "\(.dropped_frames) frames dropped on purpose; " elif .dropped_packets > 0 then "\(.dropped_packets) packets dropped on purpose; " else "" end) + "\(.frames) frames at \(.fps * 10 | round / 10) fps, \(.idr) keyframes, \(.recovery_frames) recovery frames, \(.decode_errors) decode errors, \(.corrupt) corrupt, \(.stalls) stalls"' "$2")
-	[ "$(jq '.frames > 0 and .decode_errors + .corrupt == 0 and .stalled_ms < .seconds * 500' "$2")" = true ] || result=FAIL
+	local notes result=ok why
+	notes=$(jq -r 'def s: . / 1000 * 10 | round / 10;
+		(if .dropped_frames > 0 then "\(.dropped_frames) frames dropped on purpose; " elif .dropped_packets > 0 then "\(.dropped_packets) packets dropped on purpose; " else "" end)
+		+ "\(.frames) frames at \(.fps * 10 | round / 10) fps, \(.missing) missing, \(.idr) keyframes"
+		+ (if .dropped_frames + .dropped_packets + .rfi_requests > 0 then ", \(.rfi_requests) RFI requests, \(.recovery_frames) recovery frames" else "" end)
+		+ (if .decode_errors + .corrupt > 0 then ", \(.decode_errors) decode errors, \(.corrupt) corrupt" else "" end)
+		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"' "$2")
+	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
+		if .decode_errors + .corrupt > 0 then "pictures that didn'"'"'t decode" else empty end,
+		if .stalled_ms >= .seconds * 500 then "frozen half the stream or more" else empty end] | join(", ")' "$2")
+	[ -z "$why" ] || { result=FAIL; notes="$why: $notes"; }
 	[ "${3:-0}" = 0 ] || notes+=" (the whole stream; the report card leaves out its first $3 s, while the workload starts)"
 	row "$1" $result "$notes"
 }
@@ -1302,8 +1312,9 @@ battery_streams() {
 				clean) args+=(--seconds "$seconds") ;;
 				loss)
 					args+=(--seconds "$seconds")
-					# By default, lose every packet of one frame every two seconds. The same seed on both builds, so both
-					# see the same losses (first, so a --seed in --chaos still wins).
+					# By default, lose every packet of one frame in 120 (one a second at 120 fps), by frame number, so both
+					# builds lose the same frames; the seed only matters for --chaos's random losses (first, so a --seed in
+					# --chaos still wins).
 					args+=(--seed 1)
 					if [ ${#chaos[@]} -gt 0 ]; then args+=("${chaos[@]}"); else args+=(--loss-frame-every 120); fi
 					;;
@@ -1400,6 +1411,12 @@ bench_streams() {
 	stop_server
 }
 
+# verdict_counts COMPARE_MD: "; N improved, M changed" from a compare report's rows, or nothing.
+verdict_counts() {
+	awk -F'|' 'NF > 7 && !/^\|-/ { v = $8; gsub(/^ +| +$/, "", v); sub(/ \(.*/, "", v); if (v != "" && v != "unchanged" && v != "verdict") n[v]++ }
+		END { for (v in n) out = out (out ? ", " : "") n[v] " " v; if (out) printf "; %s", out }' "$1"
+}
+
 # compare_builds: moonshine-otel compare of each workload and codec's benchmark streams, both builds.
 compare_builds() {
 	local w codec t b md status verdict result
@@ -1411,7 +1428,7 @@ compare_builds() {
 			status=0
 			"$watcher" compare "$b" "$t" --format markdown > "$md" 2>&1 || status=$?
 			case $status in
-			0) verdict="no regression" result=ok ;;
+			0) verdict="no regression$(verdict_counts "$md")" result=ok ;;
 			1) verdict="slower" result=FAIL ;;
 			*) verdict="no verdict" result=skipped ;;
 			esac
