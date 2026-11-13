@@ -63,6 +63,7 @@ CLEAN = ', stream="clean"'
 # Streams with nothing dropped on purpose: clean and click streams.
 UNDROPPED = ', stream=~"clean|click"'
 HIGH_LOAD = CLEAN + ', load="high"'
+VSYNC = ', mode="vsync"'
 
 
 def sent_fps(sel):
@@ -133,6 +134,16 @@ SCORED = {
     "keyframes_per_switch": lambda sel: (
         f'sum({host("moonshine_frames_total", "frame_kind=\"key\"", sel + CLEAN)} and on (stream_key) {clean_switching(sel + CLEAN)})'
         f' / (sum({clean_switching(sel + CLEAN)}) > 0)'),
+    # The client's model of a display presenting with V-Sync (moonlight-qt's default), on the clean streams.
+    "display_latency_median": lambda sel: f'1000 * histogram_quantile(0.5, sum({whole("moonshine_client_display_latency_seconds", sel + CLEAN + VSYNC)}))',
+    "display_dropped": lambda sel: (
+        f'100 * (sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC + ", shown=\"false\"")})'
+        f' or 0 * sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC)}))'
+        f' / sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC)})'),
+    "display_judder": lambda sel: (
+        f'100 * (sum({whole("moonshine_client_display_judder_total", sel + CLEAN + VSYNC)})'
+        f' or 0 * sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC)}))'
+        f' / sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC + ", shown=\"true\"")})'),
     "load_fps": lambda sel: delivered(sel + HIGH_LOAD),
     "peak_bitrate": lambda sel: (
         f'100 * max({whole("moonshine_client_bitrate_peak_bit_per_second", sel + CLEAN)})'
@@ -146,7 +157,8 @@ TILE_UNITS = {"frame intervals": ("suffix: frames", 2, " frames"), "ms": ("ms", 
 FACTS = {"machine": "Machine", "cpu": "CPU", "memory": "Memory", "gpu": "GPU", "driver": "Driver",
          "other_gpus": "Other GPUs", "os": "OS", "kernel": "Kernel", "network": "Network",
          "code": "Build", "ref": "Source", "commit": "Commit", "baseline": "Baseline", "route": "Route",
-         "resolution": "Resolution", "fps": "Frame rate", "bitrate": "Bitrate", "seconds": "Stream length", "chaos": "Chaos", "tier": "Battery"}
+         "resolution": "Resolution", "fps": "Frame rate", "bitrate": "Bitrate", "seconds": "Stream length", "chaos": "Chaos", "tier": "Battery",
+         "harness_version": "moonshine-test-headless", "client_version": "gamestream-test-client", "otel_version": "moonshine-otel"}
 # Run A and run B: blue and orange, apart for color-blind readers too; named by their code (a_id, b_id).
 A_COLOR, B_COLOR, NO_DATA_COLOR = "#3987e5", "#d95926", "#5a5f66"
 # Moonshine's frame stages in pipeline order, a color each; A's blue and B's orange go to the two thinnest.
@@ -157,14 +169,19 @@ RUN_COLORS = [
     {"matcher": {"id": "byRegexp", "options": ".* · B$"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": B_COLOR}}]},
 ]
 # Unitless metrics that aren't counts.
-DECIMALS = {"keyframes_per_switch": 2}
+DECIMALS = {"keyframes_per_switch": 2, "display_dropped": 2, "display_judder": 2}
 # What an empty tile means.
 NO_VALUE = {"freeze_p95": "no loss test", "recovered_without_keyframe": "no loss test", "click_median": "no click test",
-            "keyframes_per_switch": "no HDR switch test", "load_fps": "no GPU-load test"}
+            "keyframes_per_switch": "no HDR switch test", "load_fps": "no GPU-load test",
+            "display_latency_median": "no display model", "display_dropped": "no display model",
+            "display_judder": "no display model"}
 
 
 def bands(m):
-    """The target and acceptable values as threshold colors: good at or past the target, poor past acceptable."""
+    """The target and acceptable values as threshold colors: good at or past the target, poor past acceptable. A metric
+    without them yet is shown in one neutral color, not judged."""
+    if m["target"] is None:
+        return [{"color": "text", "value": None}]
     if m["better"] == "higher":
         return [{"color": "red", "value": None}, {"color": "yellow", "value": m["acceptable"]},
                 {"color": "green", "value": m["target"]}]
@@ -175,6 +192,8 @@ def bands(m):
 
 def describe(m):
     """What a tile shows, and its thresholds. Why they're set where they are is in targets.json."""
+    if m["target"] is None:
+        return f"{m['what']}\n\nNot judged yet: {m['basis']}"
     op = "≥" if m["better"] == "higher" else "≤"
     unit = TILE_UNITS.get(m["unit"], ("", 0, " " + m["unit"]))[2]
     return (f"{m['what']}\n\nGreen {op} {m['target']}{unit}, yellow {op} {m['acceptable']}{unit}, red beyond. "
@@ -418,6 +437,12 @@ def test_runs():
                                  "moonshine_client_frame_interval_seconds", CLEAN, wsel, frame_bins(0.1, 3), "frames", log=True))
             out.append(timeline("Frame pacing p99 over time", "The time between frames arriving at the client, p99, clean streams.",
                                 lambda s: f'1000 * histogram_quantile(0.99, sum(rate(moonshine_client_frame_interval_seconds{{{s}{wsel}{CLEAN}}}[10s])))', "ms", wid))
+            if measure == "smoothness":
+                out.append(histogram("Decoded to on screen", "From the client decoding a frame to a display showing it, clean "
+                                     "streams, in the client's model of moonlight-qt presenting with V-Sync: share of frames per "
+                                     "millisecond. Even arrivals are one bar near half a refresh; bars a refresh or more further are "
+                                     "frames queued behind late ones.",
+                                     "moonshine_client_display_latency_seconds", CLEAN + VSYNC, wsel, ms_bins(), "ms"))
         elif measure == "server_latency":
             out.append(distribution("Host latency", "Moonshine's time on the host from capturing a frame to sending its last packet.",
                                     "moonshine_frame_duration_seconds", CAPTURED, wsel, on_host=True))

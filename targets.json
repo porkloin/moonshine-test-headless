@@ -66,6 +66,36 @@
         }
       ]
     },
+    "display_latency_median": {
+      "measure": "smoothness",
+      "label": "decoded to on screen",
+      "what": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).",
+      "unit": "ms",
+      "better": "lower",
+      "target": null,
+      "acceptable": null,
+      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones."
+    },
+    "display_dropped": {
+      "measure": "smoothness",
+      "label": "dropped by the display",
+      "what": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.",
+      "unit": "%",
+      "better": "lower",
+      "target": null,
+      "acceptable": null,
+      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies."
+    },
+    "display_judder": {
+      "measure": "smoothness",
+      "label": "judder",
+      "what": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.",
+      "unit": "%",
+      "better": "lower",
+      "target": null,
+      "acceptable": null,
+      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies."
+    },
     "server_p99_ms": {
       "measure": "server_latency",
       "label": "host latency p99",
