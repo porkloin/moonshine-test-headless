@@ -776,7 +776,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", result!=\"ok\"}[$__range])) or vector(0)",
+          "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -860,7 +860,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or vector(0)",
+          "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -2186,7 +2186,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2270,7 +2270,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -3606,7 +3606,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -3618,7 +3618,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -3706,7 +3706,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -3718,7 +3718,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5425,7 +5425,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -5437,7 +5437,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5525,7 +5525,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -5537,7 +5537,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7244,7 +7244,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7256,7 +7256,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7344,7 +7344,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7356,7 +7356,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9063,7 +9063,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9075,7 +9075,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9163,7 +9163,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9175,7 +9175,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -10882,7 +10882,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -10894,7 +10894,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -10982,7 +10982,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -10994,7 +10994,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11570,7 +11570,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11582,7 +11582,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11670,7 +11670,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11682,7 +11682,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12188,7 +12188,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12200,7 +12200,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12288,7 +12288,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12300,7 +12300,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12806,7 +12806,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", result!=\"ok\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12818,7 +12818,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", result!=\"ok\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", result!=\"ok\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12906,7 +12906,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or vector(0)",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12918,7 +12918,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or vector(0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
