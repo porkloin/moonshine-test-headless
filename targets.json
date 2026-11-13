@@ -15,7 +15,7 @@
     "missing_clean": {
       "measure": "correctness",
       "label": "lost frames",
-      "what": "Frames that never reached the client's decoder on streams with nothing dropped.",
+      "what": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).",
       "unit": "",
       "better": "lower",
       "scale": "step",
@@ -53,7 +53,7 @@
     "fps_delivered": {
       "measure": "smoothness",
       "label": "delivered frame rate",
-      "what": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.",
+      "what": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.",
       "unit": "%",
       "better": "higher",
       "target": 99,
@@ -69,7 +69,7 @@
     "server_p99_ms": {
       "measure": "server_latency",
       "label": "host latency p99",
-      "what": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.",
+      "what": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).",
       "unit": "ms",
       "better": "lower",
       "target": 3,
@@ -185,7 +185,7 @@
     "keyframes_per_switch": {
       "measure": "hdr_transitions",
       "label": "HDR switch keyframes",
-      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched.",
+      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched and that lost no frames (so no keyframe was the client asking to recover).",
       "unit": "",
       "better": "lower",
       "target": 0.7,
@@ -209,7 +209,7 @@
     "load_fps": {
       "measure": "load",
       "label": "FPS under GPU load",
-      "what": "Frames the client received per second on clean streams with the GPU under heavy load, as a share of the frames Moonshine sent.",
+      "what": "The share of the frames Moonshine sent that the client received on clean streams with the GPU under heavy load (received over received plus missing frame numbers, after the warmup).",
       "unit": "%",
       "better": "higher",
       "target": 99,
