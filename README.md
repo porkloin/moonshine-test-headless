@@ -53,6 +53,9 @@ podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view 
   moonshine-test-.../results.tar.gz
 ```
 
+If that's still too big (a full `--baseline` run usually is), add `--no-traces`. Traces are most of the telemetry;
+without them you get `results-compact-no-traces.tar.gz`, with the same summary but no per-frame traces in Grafana.
+
 ### Compare two runs
 
 ```sh
