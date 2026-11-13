@@ -25,70 +25,105 @@ podman container runlabel run ghcr.io/porkloin/moonshine-test-headless \
   -- --pixelforge 123
 ```
 
-On NVIDIA, use `run-nvidia` instead of `run`. Results go to a new `moonshine-test-...` folder.
+On NVIDIA, use `run-nvidia` instead of `run`.
 
-### View your run
+> [!TIP]
+> Want results quickly? Use `--tier quick` to run fewer tests.
+
+### View your results
+
+Each run writes its results to a new folder in the current directory:
+
+```
+moonshine-test-<timestamp>-<refs>/
+```
+
+Open them in a throwaway Grafana:
 
 ```sh
 podman container runlabel run ghcr.io/porkloin/moonshine-test-headless:view \
-  moonshine-test-.../results.tar.gz
+  moonshine-test-<timestamp>-<refs>/results.tar.gz
 ```
 
-Open the link it prints. Ctrl+C stops it.
+It prints a link to open:
 
-### Share it
-
-Paste `summary.md` into the pull request, and attach `results.tar.gz` to the same comment. Anyone with the file can
-view it the same way.
-
-GitHub only takes attachments up to 25 MB. For a bigger bundle, make a smaller copy with the same results,
-`results-compact.tar.gz`, and attach that instead:
-
-```sh
-podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view \
-  moonshine-test-.../results.tar.gz
+```
+Open http://localhost:3333/d/moonshine-test-runs?from=1794543900000&to=1794546600000
+Ctrl+C to stop; nothing is kept.
 ```
 
-If that's still too big (a full `--baseline` run usually is), add `--no-traces`. Traces are most of the telemetry;
-without them you get `results-compact-no-traces.tar.gz`, with the same summary but no per-frame traces in Grafana.
+### Share your benchmark
+
+moonshine-test-headless produces two ways to share your test results with others:
+
+1. **Test summary.** Open or copy `summary.md` inside the results folder, which contains an overview of the test
+   results. It's formatted to render in GitHub Markdown, so it can be pasted into a pull request body or comment.
+2. **Results bundle.** `results.tar.gz` contains a portable, complete set of metrics and traces. Anyone can open a
+   `results.tar.gz` with the view command above to browse every metric and trace from your run.
+
+> [!NOTE]
+> Results bundles can get large, and GitHub attachments are limited to 25 MB. Make a smaller copy with the same
+> summary:
+>
+> ```sh
+> podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view \
+>   moonshine-test-<timestamp>-<refs>/results.tar.gz
+> ```
+>
+> If that's still too big, add `--no-traces` to the end of the command. Be aware that `--no-traces` removes all
+> trace data from the bundle.
 
 ### Compare two runs
 
 ```sh
 podman container runlabel run ghcr.io/porkloin/moonshine-test-headless:view \
-  mine.tar.gz theirs.tar.gz
+  moonshine-test-<timestamp>-<refs>/results.tar.gz moonshine-test-<timestamp>-<refs>/results.tar.gz
 ```
 
-The board opens with the first as run A and the second as run B.
+The Grafana board opens with the first as run A and the second as run B.
 
 ### Make a Markdown report
 
 ```sh
 podman container runlabel summary ghcr.io/porkloin/moonshine-test-headless:view \
-  results.tar.gz > summary.md
+  moonshine-test-<timestamp>-<refs>/results.tar.gz > summary.md
 ```
 
 Give it a second bundle to put the two runs side by side.
 
-## Other clients
+## Loopback, Remote, and Real Clients, and Simulating Network Failures
 
-By default the client is simulated on the same machine. To stream across a real network instead, run the test client
-on another machine over SSH. That machine needs podman, and SSH asks for its password once:
+By default moonshine-test-headless uses a local loopback client via
+[gamestream-test-client](https://github.com/porkloin/gamestream-test-client). The loopback client has nearly perfect
+network conditions and is unlikely to surface issues that come from network imperfections. Several techniques are
+available to test more realistic network conditions:
 
-```sh
-podman container runlabel run-remote ghcr.io/porkloin/moonshine-test-headless \
-  -- --pixelforge 123 --client you@other-machine
-```
+1. **Loopback client with simulated chaos.** `--chaos` replaces the default packet loss (one frame in 120) on each
+   codec's packet-loss stream with any of gamestream-test-client's
+   [behavior flags](https://github.com/porkloin/gamestream-test-client#stream-behavior-flags), such as Wi-Fi-style
+   bursty loss and jitter. It goes last:
 
-To play the build yourself in Moonlight, serve it. Pair by typing the PIN Moonlight shows into the terminal; each
-workload shows up as an app:
+   ```sh
+   podman container runlabel run ghcr.io/porkloin/moonshine-test-headless \
+     -- --pixelforge 123 --chaos --loss-bursty 2:8 --delay 30:10
+   ```
 
-```sh
-podman container runlabel serve ghcr.io/porkloin/moonshine-test-headless \
-  -- --pixelforge 123
-```
+2. **Remote SSH client.** The client runs on another machine over SSH and streams across your real LAN, Wi-Fi or
+   Tailscale, decoding on that machine's GPU. That machine needs podman, and SSH asks for its password once:
 
-`serve` uses Moonshine's default ports, so stop any Moonshine already running on the machine first.
+   ```sh
+   podman container runlabel run-remote ghcr.io/porkloin/moonshine-test-headless \
+     -- --pixelforge 123 --client you@other-machine
+   ```
+
+3. **Real client via LAN/Tailscale.** `serve` builds Moonshine and serves it to a real Moonlight client until Ctrl+C.
+   Each workload shows up as an app; pair by typing the PIN Moonlight shows into the terminal. It uses Moonshine's
+   default ports, so stop any Moonshine already running on the machine first:
+
+   ```sh
+   podman container runlabel serve ghcr.io/porkloin/moonshine-test-headless \
+     -- --pixelforge 123
+   ```
 
 ## Workloads
 
@@ -105,15 +140,6 @@ What gets streamed. `--tier` picks a set; `--app NAME` picks workloads one by on
 
 GravityMark is downloaded on first use and asks you to accept its license in the terminal, so run `--tier full`
 interactively (or pass `--accept-gravitymark-license`).
-
-## Timing
-
-|                | Alone   | With `--baseline` |
-| -------------- | ------- | ----------------- |
-| `--tier quick` | ~2 min  | ~3 min            |
-| Default        | ~15 min | ~35 min           |
-
-Tested on a Ryzen 9 5950X with a Radeon RX 7900 XTX.
 
 ## Options
 
