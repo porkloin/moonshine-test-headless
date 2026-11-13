@@ -1,5 +1,5 @@
 {
-  "status": "Provisional: drawn from other streaming projects' published claims, which each measure differently. Open to discussion.",
+  "status": "Provisional. Where a metric cites references, they are other projects' published figures, each measured differently. Open to discussion.",
   "metrics": {
     "bad_pictures": {
       "measure": "correctness",
@@ -10,18 +10,18 @@
       "scale": "step",
       "target": 0,
       "acceptable": 0,
-      "basis": "Decode failures plus corrupt decodes. Any is a bug: 100 with none, else 0."
+      "basis": "Decode failures plus corrupt decodes. Any is a bug: scores 100 with none, else 0."
     },
     "missing_clean": {
       "measure": "correctness",
       "label": "lost frames",
-      "what": "Frames that never reached the client's decoder on streams with nothing dropped.",
+      "what": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).",
       "unit": "",
       "better": "lower",
       "scale": "step",
       "target": 0,
       "acceptable": 3,
-      "basis": "Frames that never arrived on streams with nothing dropped: 100 with none, 50 with up to 3."
+      "basis": "Frames that never arrived on streams with nothing dropped. Scores 100 with none, 50 with up to 3, else 0."
     },
     "frame_time_p99": {
       "measure": "smoothness",
@@ -53,7 +53,7 @@
     "fps_delivered": {
       "measure": "smoothness",
       "label": "delivered frame rate",
-      "what": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.",
+      "what": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.",
       "unit": "%",
       "better": "higher",
       "target": 99,
@@ -69,12 +69,12 @@
     "server_p99_ms": {
       "measure": "server_latency",
       "label": "host latency p99",
-      "what": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.",
+      "what": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).",
       "unit": "ms",
       "better": "lower",
       "target": 3,
       "acceptable": 8,
-      "basis": "Mostly the encode, which scales with resolution, not frame rate. Other hosts report 0.45–4.4 ms. The target is set from 1080p claims: at 4K the encode alone takes about 5–7 ms on RDNA 3 and 4 (henwen's 7900 XTX, rosso's 9070 XT, 2026-11-11).",
+      "basis": "Mostly the encode, which scales with resolution, not frame rate. Published figures, none a host p99: Rubylight's encode 2.6–3.1 ms at 1440p120, Punktfunk's encode p99 4.4 ms under load. The target is set from 1080p claims: at 4K the encode alone takes about 5–7 ms on RDNA 3 and 4 (henwen's 7900 XTX, rosso's 9070 XT, 2026-11-11).",
       "see": [
         {
           "label": "Percentile",
@@ -89,7 +89,7 @@
         },
         {
           "project": "Punktfunk",
-          "claim": "p50 ~0.8 ms capture → received at 720p120 on its punktfunk/1 protocol, NVIDIA zero-copy NVENC (README June–September 2026; span ends at the client, so it includes the network; machines not stated)",
+          "claim": "p50 ~0.8 ms capture to received, 720p120, NVENC zero-copy; includes the network",
           "url": "https://git.unom.io/unom/punktfunk/src/commit/e021d7fddfdadcf00326de309be90adca4029983/README.md"
         },
         {
@@ -126,7 +126,7 @@
       "references": [
         {
           "project": "Rubylight",
-          "claim": "mean gap after a keyframe cut from 8.44 to 5.30 ms (HEVC, recovery cadence work)",
+          "claim": "mean gap after a keyframe cut from 8.44 to 5.30 ms (HEVC, recovery cadence work); its \"gap\" isn't defined, so not comparable",
           "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
         }
       ]
@@ -160,9 +160,9 @@
       "what": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.",
       "unit": "frame intervals",
       "better": "lower",
-      "target": 1,
-      "acceptable": 2,
-      "basis": "From the injected click to the decoded flash. The app's next frame and its render take about one interval, so 1 is the floor.",
+      "target": 2,
+      "acceptable": 3,
+      "basis": "From the injected click to the decoded flash, the whole chain but the input device and display: the app's next frame (about one interval: waiting for it, its render and the compositor's capture), then Moonshine's capture to send, the network both ways and the client's decode. At 120 fps over a LAN the last three take most of another interval, so 2 is the target.",
       "see": [
         {
           "label": "Input lag",
@@ -172,12 +172,12 @@
       "references": [
         {
           "project": "Rubylight",
-          "claim": "5.89 ms median capture to client present, AV1 1080p60, loopback",
+          "claim": "5.89 ms median capture to client present, AV1 1080p60, loopback (capture to present, no input)",
           "url": "https://github.com/RamazanKara/Rubylight"
         },
         {
           "project": "Nightjar",
-          "claim": "7 ms median picture age, capture to rendered, Retroid Pocket 6 over Wi-Fi, HEVC 1080p60",
+          "claim": "7 ms median picture age, capture to rendered, Retroid Pocket 6 over Wi-Fi, HEVC 1080p60 (capture to present, no input)",
           "url": "https://github.com/RamazanKara/nightjar"
         }
       ]
@@ -185,7 +185,7 @@
     "keyframes_per_switch": {
       "measure": "hdr_transitions",
       "label": "HDR switch keyframes",
-      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched.",
+      "what": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched and that lost no frames (so no keyframe was the client asking to recover).",
       "unit": "",
       "better": "lower",
       "target": 0.7,
@@ -209,7 +209,7 @@
     "load_fps": {
       "measure": "load",
       "label": "FPS under GPU load",
-      "what": "Frames the client received per second on clean streams with the GPU under heavy load, as a share of the frames Moonshine sent.",
+      "what": "The share of the frames Moonshine sent that the client received on clean streams with the GPU under heavy load (received over received plus missing frame numbers, after the warmup).",
       "unit": "%",
       "better": "higher",
       "target": 99,
@@ -224,7 +224,7 @@
       "references": [
         {
           "project": "Rubylight",
-          "claim": "117–120 fresh pictures/s at 120 fps under GPU load; Vibepollo 2.0 103–118",
+          "claim": "117–120 fresh pictures/s at 120 fps under GPU load; Vibepollo 2.0 103–118 (HEVC)",
           "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
         },
         {
@@ -274,7 +274,7 @@
     }
   ],
   "click_context": {
-    "about": "What a click's latency feels like next to everyday hardware. The test measures from the client injecting a click to the client finishing the decode of the flash, over loopback: no input device, network or display. The parts a real setup adds, and whole-chain measurements of local play and cloud streaming, come from published tests, each one setup and method; treat them as rough.",
+    "about": "What a click's latency feels like next to everyday hardware. The test measures from the client injecting a click to the client finishing the decode of the flash: no input device or display (and over loopback, no network). The parts a real setup adds, and whole-chain measurements of local play and cloud streaming, come from published tests, each one setup and method; treat them as rough.",
     "adds": [
       {
         "part": "input device",

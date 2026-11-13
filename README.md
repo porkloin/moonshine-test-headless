@@ -16,10 +16,6 @@ client telemetry and timing from a simulated Moonlight client (loopback) or one 
   (already on Bazzite and other Universal Blue NVIDIA images; `nvidia-ctk cdi list` shows `nvidia.com/gpu=all` when
   it's set up)
 
-> [!NOTE]
-> Host latency and `--baseline` need [hgaiser/moonshine#257](https://github.com/hgaiser/moonshine/pull/257), which
-> isn't merged yet.
-
 ## Quickstart
 
 ### Run a test
@@ -130,7 +126,7 @@ Put them after `--`.
   - `./pixelforge`: your checkout in the current folder, uncommitted changes included
 - `--baseline`: compare against hgaiser's default branches
 - `--tier quick` or `--tier full`: fewer or more workloads
-- `--iterations N`: timed streams per workload with `--baseline` (default 5)
+- `--iterations N`: timed streams per codec and build with `--baseline` (default 5)
 - `--mode 4k120`: stream resolution and frame rate (default `1080p60`)
 - `--help`: everything else, also documented in [AGENTS.md](AGENTS.md)
 

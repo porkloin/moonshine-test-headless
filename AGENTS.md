@@ -89,7 +89,7 @@ build with "was not used in the crate graph".
 | `--baseline-PROJECT REF` | baseline for that project (`moonshine`, `pixelforge`, `ferriscope`) instead of hgaiser's default branch (implies `--baseline`) |
 | `--iterations N` | timed streams per codec and build with `--baseline` (5) |
 | `--chaos OPTIONS...` | gamestream-test-client options for each codec's second stream instead of `--loss-frame-every 120`: everything after `--chaos`, so it goes last, e.g. `--chaos --loss-bursty 2:8 --no-rfi`. The row is named after them |
-| `--no-traces` | don't record telemetry (on by default, `--traces` still accepted), so no summary beyond the checks. With it: moonshine-otel's OTLP metrics (exported every second) and traces from the streams in `logs/otlp/`; every frame is a trace with Moonshine's and the client's spans (each stream gets a key for `watch --stream-key-file` and `moonshine-otel client`, which follows the client's `--stats` live, or reads them once fetched back from a remote client, labeling its `moonshine.client.*` metrics with the workload, codec, stream kind, `run` (the code under test as `<asked for>@<commit>`, then the run's start in UTC: `#257@5631ba0 · 11-03 22:13Z`, or `local@5631ba0-dirty · …` for a checkout), `side` (test, or base for the baseline streams), that side's `code` (`#257@5631ba0`), `ref` and `commit`, and the workload's `load`; at the run's first stream, `moonshine-otel info` records the host and the client (the same fields: machine, CPU, memory, the GPU and driver it encoded or decoded on, other GPUs, OS, kernel, network; N/A where the probe had none) and the run (code, baseline, the route and round trip, never an address, and the stream settings) (`logs/info.log`); `logs/client-traces.log`). Workloads with `"log": true` in battery.json (clickflash, hdrneon) also get `--log /work/app-events.jsonl`, emptied before each stream, and `moonshine-otel app` follows it here with the same key and labels (`logs/app-traces.log`). The client times frames on its own machine, so it also gets `--clock`: `gamestream-test-client clock-serve` runs here on base port + 22 (48011, or 58011 remote) and answers NTP with this machine's clock, the one Moonshine stamps frames with; the client measures it before and after each stream and gives its times on it, with the offset, its uncertainty (half the fastest NTP round trip) and the drift during the stream recorded on its spans and as metrics. No machine's clock is set or needs syncing; `logs/clock-serve.log` |
+| `--no-traces` | don't record telemetry, so `summary.md` has only the checks (`--traces`, the default, is still accepted). What's recorded is under [Telemetry](#telemetry) |
 | `--tier NAME` | the battery's tier: `quick`, `standard` (default when no `--app`) or `full` |
 | `--app NAME` | a workload instead of a tier (repeatable): an id from the battery, `gravitymark:N` for N asteroids (1m by default) |
 | `--battery FILE` | the battery (workloads, measurements, tiers) from FILE instead of the image's `/usr/share/moonshine-test-headless/battery.json` |
@@ -100,13 +100,54 @@ build with "was not used in the crate graph".
 | `--bitrate KBPS` | bitrate for modes without one |
 | `--max-packet-size BYTES` | `max_packet_size = BYTES` under `[stream.video]` in both Moonshines' configs (Moonshine's default: no clamp), clamping the video packets' UDP payload to BYTES + 16, e.g. 1024 to stay under Tailscale's 1280 MTU. Recorded on the run's labels; the configs land in `logs/` |
 | `--moonshine-config KEY=VALUE` | set KEY in the tested Moonshine's config, repeatable; `--baseline-moonshine-config` for the baseline's. KEY is a dotted path (`stream.video.rate_control`: table `stream.video`, key `rate_control`, the last segment); `set_config` puts it under that table's header when the harness wrote one, replacing a value the harness set (ports, `max_packet_size`), else in a new table at the end (a top-level key before the first table). VALUE is TOML when `tomllib` parses it (`1024`, `true`, `[1, 2]`, `"vbr"`), else a string, since runlabel keeps quotes and the user would otherwise need `'"vbr"'`. The finished config is checked with `tomllib` (the run stops if it isn't valid). Recorded on the run's labels (`config=`, `baseline_config=`); the configs land in `logs/`. Works with `--serve` |
-| `--client USER@HOST` | stream to the client on another machine: one SSH connection for the run (`ControlMaster`, `/tmp/mth-ssh-%C`; the first asks for the password on the terminal, later ones run with `BatchMode`), closed at exit. Every remote command goes to `sh -s` on stdin, so the remote's login shell (fish, zsh) doesn't matter. Each client command runs `podman run --rm --network host --device /dev/dri --group-add keep-groups -v mth-client-keys:/keys -v ~/.cache/mth-client/out:/out` of `--client-image` there, with `--host` the address the remote sees this machine at (`$SSH_CONNECTION`, so a tailnet address over Tailscale); `--json`/`--csv`/`--dump` files are written to `/out` and copied back. The client machine is described by `gamestream-test-client probe` in the client image (`--network host --uts=host --device /dev/dri`, the remote's os-release mounted); RTT from 10 pings. The probe's facts go into the run's `moonshine.test.info` (role=client), the route and round trip into role=run. Needs the `run-remote` label. Ports: Moonshine's config moves them to Sunshine's layout around HTTP 57989 (`[webserver]` HTTPS 57984, `[stream]` RTSP 58010, video 57998, control 57999, audio 58000; the label publishes those, and 58011 UDP for `clock-serve`), so a Moonshine on the host keeps the defaults; the client gets `--port 57989` and learns the rest from `/serverinfo` and RTSP. Loopback runs keep the defaults |
-| `--client-image IMAGE` | the client image the remote runs: by default `/usr/share/moonshine-test-headless/client-image`, which the image build writes from `--build-arg CLIENT_IMAGE` (CI: `gamestream-test-client:sha-<submodule commit>`, so the remote runs the same client as loopback), else `:latest`. Pulled on the remote each run, or used as is when it's already there (`podman load`). Preflight: podman on the remote, a render node it can open (else software decode), and once Moonshine is up, a TCP connect from the remote to `host:47989` (else the "Remote client" check fails, naming the ports) |
+| `--client USER@HOST` | stream to a client on another machine (needs the `run-remote` label); see [Remote client](#remote-client) |
+| `--client-image IMAGE` | the client image the remote runs: by default `/usr/share/moonshine-test-headless/client-image`, which the image build writes from `--build-arg CLIENT_IMAGE` (CI: `gamestream-test-client:sha-<submodule commit>`, so the remote runs the same client as loopback), else `:latest`. Pulled on the remote each run, or used as is when it's already there (`podman load`). Preflight: podman on the remote, a render node it can open (else software decode), and once Moonshine is up, a TCP connect from the remote to Moonshine's HTTP port (57989) (else the "Remote client" check fails, naming the ports) |
 | `--decode HOW` | the client's decoding: `hw` (default), `sw`, or a render node. The harness picks the device once from the client's probe and passes `--decode-device`: `hw` takes Moonshine's own GPU over loopback (encode and decode on one device; else the VAAPI GPU with the most video memory), and on a remote client its VAAPI GPU with the most video memory; with no VAAPI GPU (NVIDIA), software. Codecs the device doesn't decode (`decodes` in the probe; HDR HEVC needs `hevc10`) are skipped with a row, like codecs Moonshine doesn't offer, so software decoding never lands in the numbers. The summary's client GPU and driver are that device's. Each stream's client summary records its `decoder`. Bench streams keep `--decode none`. NVIDIA (`run-nvidia`, no `/dev/dri`, no NVDEC VAAPI driver in the image) decodes in software |
 | `--accept-gravitymark-license` | accept GravityMark's license without being asked |
 | `--strict` | exit 1 when a check failed, for CI |
 | `--log FILTER` | `MOONSHINE_LOG` for Moonshine and `RUST_LOG` for the GPU tests: a level or per-crate filter, e.g. `pixelforge=debug,ferriscope=trace` (info); at debug or trace the client logs the protocol too |
 | `--serve` | what the `serve` label passes |
+
+## Telemetry
+
+Recorded unless `--no-traces`, into `logs/otlp/`: moonshine-otel's OTLP metrics (exported every second) and traces,
+one trace per frame with Moonshine's and the client's spans.
+
+- Each stream gets a key for `watch --stream-key-file` and for `moonshine-otel client`, which follows the client's
+  `--stats` live (or reads them once they're fetched back from a remote client).
+- The client's `moonshine.client.*` metrics are labeled with the workload, codec, stream kind, the workload's `load`,
+  `side` (test, or base for the baseline's streams), that side's `code` (`#257@5631ba0`), `ref` and `commit`, and
+  `run`: the code under test and the run's start in UTC (`#257@5631ba0 · 11-03 22:13Z`, or `local@5631ba0-dirty · …`
+  for a checkout).
+- At the first stream, `moonshine-otel info` records the host and the client (machine, CPU, memory, the GPU and
+  driver it encoded or decoded on, other GPUs, OS, kernel, network; N/A where the probe had none) and the run (code,
+  baseline, route and round trip, never an address, and the stream settings). `logs/info.log`.
+- Workloads with `"log": true` in battery.json (clickflash, hdrneon) also get `--log /work/app-events.jsonl`,
+  emptied before each stream, which `moonshine-otel app` follows with the same key and labels
+  (`logs/app-traces.log`). The client's traces log is `logs/client-traces.log`.
+- Clock: the client times frames on its own machine, so it gets `--clock`. `gamestream-test-client clock-serve` runs
+  here on base port + 22 (48011, or 58011 remote) and answers NTP with this machine's clock, the one Moonshine stamps
+  frames with. The client measures it before and after each stream and gives its times on it; the offset, its
+  uncertainty (half the fastest NTP round trip) and the drift are on its spans and metrics. No clock is set or needs
+  syncing. `logs/clock-serve.log`.
+
+## Remote client
+
+`--client USER@HOST` streams to the client on another machine, decoding on that machine's GPU.
+
+- SSH: one connection for the run (`ControlMaster`, `/tmp/mth-ssh-%C`). The first asks for the password on the
+  terminal, later ones run with `BatchMode`; it's closed at exit. Every remote command goes to `sh -s` on stdin, so
+  the remote's login shell (fish, zsh) doesn't matter.
+- Client container: each client command runs `podman run --rm --network host --device /dev/dri --group-add
+  keep-groups -v mth-client-keys:/keys -v ~/.cache/mth-client/out:/out` of `--client-image`, with `--host` the
+  address the remote sees this machine at (`$SSH_CONNECTION`, so a tailnet address over Tailscale). `--json`,
+  `--csv` and `--dump` files go to `/out` and are copied back. The machine is described by
+  `gamestream-test-client probe` (`--network host --uts=host --device /dev/dri`, the remote's os-release mounted);
+  the round trip comes from 10 pings.
+- Ports: Moonshine's config moves them to Sunshine's layout around HTTP 57989 (HTTPS 57984, RTSP 58010, video
+  57998, control 57999, audio 58000), which the `run-remote` label publishes along with 58011 UDP for `clock-serve`,
+  so a Moonshine already on the host keeps the defaults. The client gets `--port 57989` and learns the rest from
+  `/serverinfo` and RTSP. Loopback runs keep the defaults.
 
 ## Workloads
 
@@ -160,15 +201,20 @@ In order; a failed build stops the run.
 | pixelforge validation, ferriscope validation | never fails: `ok` with no validation layer messages, else `messages` listing each VUID, how often, and the test binaries it came from (the layer can lag a driver's extensions) |
 | ferriscope GPU tests | `cargo test -p ferriscope --no-fail-fast -- --ignored --test-threads=1` passes, under the validation layer (needs Xwayland, xev, xdotool, xprop, which the image has) |
 | Build Moonshine | ferriscope's WSI layer (`dist/install-wsi.sh`) and `cargo build --release --bin moonshine` succeed |
+| Session | the container's systemd user manager started its session bus (`logs/user-manager.log`); without it the run stops |
+| moonshine-otel | built (`logs/moonshine-otel-build.log`); skipped otherwise, and the run goes on without host timing, telemetry or report card |
+| Start Moonshine (Start baseline Moonshine) | Moonshine answered `/serverinfo` after starting (`logs/moonshine.log`) |
+| Pair | the client paired (`logs/pair.log`) |
+| Remote client | with `--client`: the remote reached Moonshine's HTTP port; the row names the ports to open |
 | Host timing | skipped when the Moonshine under test has no statistics socket (`src/stats_socket.rs`) |
 | `<codec> streams` | skipped when Moonshine doesn't advertise the codec (`ServerCodecModeSupport` in `/serverinfo`) |
 | HDR | with an HDR workload and no statistics socket: skipped, since nothing confirms the streams were HDR |
 | `<workload>: <codec> HDR` failing with "asked for HDR, Moonshine streamed SDR" | an HDR workload with the statistics socket: the stream moonshine-otel recorded wasn't HDR |
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
-| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and stalls covered less than half the stream; "packet loss" drops every packet of one frame every 120 frames (`--loss-frame-every 120`); its notes start with how many frames were dropped on purpose |
-| `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded |
+| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
+| `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
 | Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
-| Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict) |
+| Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict). An ok row counts the report's other verdicts ("no regression; 9 improved, 4 changed") |
 
 The exit code is 0 when the run finished, whatever its checks say, and 2 for usage errors or no GPU. With `--strict`, a failed check makes it 1. Through `runlabel`, a
 non-zero exit shows as 125.
@@ -181,25 +227,28 @@ non-zero exit shows as 125.
 3. Start a journal and a systemd user manager (Moonshine launches apps as transient units on it).
 4. GPU tests for the pixelforge and ferriscope refs.
 5. Build Moonshine with the patched dependencies.
-6. Start it with a config that has an app per workload, plus `[stats] socket = "/run/user/0/moonshine/stats.sock"` when it has the
-   socket; then `moonshine-otel watch` (moonshine-otel's own build, unpatched: it only reads the socket)
-   records each stream into `/work/server/`.
-7. Pair the client automatically: it sends a pairing request with PIN 0000, and the script posts the PIN with the
-   client's unique id to Moonshine's localhost-only `/submit-pin`.
-8. With `--baseline`: build the baseline Moonshine.
-9. Per mode (`mout`, `mlogs`, `mwork`: the run's folder, its `logs/` and `/work` with one mode; a folder per mode and
-   `/work/<mode>` with more): start the Moonshine under test, then per workload and codec the streams the workload
-   asks for, each with `--quit` so the next starts a new session; clean streams sample GPU busy
-   (`/sys/class/drm/card*/device/gpu_busy_percent`, the busiest card, or `nvidia-smi`) every 200 ms into
-   `<stream>.gpu.csv`. With `--baseline`, the baseline Moonshine streams the same battery (rows and logs marked baseline, in
-   `logs/baseline/`), then each build in turn streams the timed workloads (recorded by `watch` into
-   `<mwork>/bench/<side>/<workload>/<codec>/`), then compare the two sides' recordings
-   per workload and codec, each comparison a check. Then copy the spool to `logs/otlp/`, and run `moonshine-otel summary logs/otlp --run
-   <the mode's run> --notes <the checks as Markdown>` with the image's Prometheus (`/usr/local/bin/prometheus`,
-   from prom/prometheus) for `summary.md`. Each mode is a run of its own (` · <mode>` on the run name with more
-   than one). Without telemetry, moonshine-otel or a recorded stream, `summary.md` is the checks only and says why.
-10. With more than one mode, the top `summary.md` is each mode's in turn; then the tarball, whatever happened, and
-    the paths of `summary.md` and `results.tar.gz` with how to add them to a pull request.
+6. Build moonshine-otel (its own build, unpatched: it only reads Moonshine's statistics socket).
+7. With `--baseline`: build the baseline Moonshine.
+8. Per mode (`mout`, `mlogs`, `mwork`: the run's folder, its `logs/` and `/work` with one mode; a folder per mode and
+   `/work/<mode>` with more):
+   - Start the Moonshine under test with a config that has an app per workload, plus
+     `[stats] socket = "/run/user/0/moonshine/stats.sock"` when it has the socket; `moonshine-otel watch` records each
+     stream into `/work/server/`.
+   - Pair the client: it sends a pairing request with PIN 0000, and the script posts the PIN with the client's unique
+     id to Moonshine's localhost-only `/submit-pin`.
+   - Per workload and codec, the streams the workload asks for, each with `--quit` so the next starts a new session.
+     Clean streams sample GPU busy (`/sys/class/drm/card*/device/gpu_busy_percent`, the busiest card, or
+     `nvidia-smi`) every 200 ms into `<stream>.gpu.csv`.
+   - With `--baseline`: the baseline Moonshine streams the same battery (rows and logs marked baseline, in
+     `logs/baseline/`). Then each build streams the timed workloads (recorded by `watch` into
+     `<mwork>/bench/<side>/<workload>/<codec>/`), and each workload and codec's two recordings are compared, a check
+     each.
+   - Copy the spool to `logs/otlp/` and run `moonshine-otel summary logs/otlp --run <the mode's run> --notes <the
+     checks as Markdown>` with the image's Prometheus (`/usr/local/bin/prometheus`) for `summary.md`. Each mode is a
+     run of its own (` · <mode>` on the run name with more than one). Without telemetry, moonshine-otel or a recorded
+     stream, `summary.md` is the checks only and says why.
+9. With more than one mode, the top `summary.md` is each mode's in turn. Then the tarball, whatever happened, and the
+   paths of `summary.md` and `results.tar.gz` with how to add them to a pull request.
 
 ## Results
 
@@ -242,9 +291,13 @@ with a tile per metric of targets.json, colored by its thresholds (a tile's ⓘ 
 config*, a row of its own so it can be folded: the host and client (the same fields, N/A where the probe had none) and the code and
 stream from `moonshine.test.info`, with the run's streams, frames decoded and clock uncertainty merged in.
 Then a folded section per battery workload with the measurements battery.json binds to it: their tiles, A beside B,
-and their charts (histograms from the native histograms with `histogram_fraction`: frame pacing in tenths of a frame on a log scale, recovery in whole frames, click to photon per millisecond up to two frames, one chart per codec; p50–p99.9 bars for host and app latency; Moonshine's mean time per stage stacked in pipeline order, a bar per run; and timelines on seconds since the
-workload's first frame in run A: each query a subquery pinned to that workload's window, `[len_<w>:1s] @ a_end_<w>`
-from hidden variables per workload, with B's selectors offset by the difference of its starts, in a Trend panel).
+and their charts: frame pacing, recovery and click histograms per codec; p50–p99.9 bars for host and app latency;
+Moonshine's stage times stacked per run; and timelines aligned on each workload's first frame.
+
+For maintainers: the histograms come from the native histograms with `histogram_fraction` (frame pacing in tenths of
+a frame on a log scale, recovery in whole frames, click to photon per millisecond up to two frames). Each timeline
+query is a subquery pinned to its workload's window in run A, `[len_<w>:1s] @ a_end_<w>` from hidden variables per
+workload, with B's selectors offset by the difference of its starts, in a Trend panel.
 Every B query is guarded by `DIFFERENT_RUNS`, empty when run B is run A, so picking one run twice shows one number,
 one set of bars and one line instead of the same run twice. Moonshine's series are joined to the client's by `stream_key` in each query, so
 every panel can filter by workload. Then the clocks, and Tempo tables of freezes and drops, the slowest frames and
@@ -280,11 +333,9 @@ at `/results`). With two or more, the link sets run A to the first bundle's run 
 `test`; any loaded run can be picked as A or B. `view/moonshine-test-view` starts Prometheus, Tempo and Grafana in the container, posts every batch
 of the spool to them (metrics in file-name order, which is time order; traces 8 at a time), and prints a link to
 the test runs board over the runs' time range. The container shares the host's network (`--network host`) and every
-service listens on 127.0.0.1 only, each on a port picked as it starts (Grafana from 3333 up, from
-`MOONSHINE_TEST_VIEW_PORT` when set; Prometheus, Tempo's HTTP, gRPC and internal servers, memberlist and the OTLP
-receiver from 19090 up; a port that a concurrent viewer took in between moves the service to the next free one), so
-several viewers, or a stale one, run side by side and nothing is reachable from outside; the printed link carries
-Grafana's port. Grafana is anonymous admin, with the test runs
+service binds to 127.0.0.1 on the first free port: Grafana from 3333 (or `MOONSHINE_TEST_VIEW_PORT`), the others
+(Prometheus, Tempo's servers, memberlist, the OTLP receiver) from 19090. Several viewers can run at once, nothing is
+reachable from outside, and the printed link has Grafana's port. Grafana is anonymous admin, with the test runs
 board and moonshine-otel's boards. Everything lives in a temp directory and goes with the container.
 
 The image's `summary` label makes `summary.md` again from a bundle, on stdout:
@@ -295,7 +346,7 @@ harness's checks (GPU tests, validation) aren't in the bundle's telemetry, so th
 
 The `compact` label writes `NAME-compact.tar.gz` next to a bundle (the current directory mounted writable):
 `view/moonshine-test-compact` runs `moonshine-otel compact` on its `logs/otlp`, which drops every metric point that
-repeats its series' previous value. The exporter sends cumulative values every 5 s and keeps sending every series it
+repeats its series' previous value. The exporter sends cumulative values every second and keeps sending every series it
 has seen, so most points in a long run repeat ended streams. A full `--baseline` run went from 45 MB to about 21 MB,
 with the same `summary.md`. Traces are kept as they are, unless `--no-traces` is passed: then the `*.traces.pb` files
 are left out of the compacted spool and it's written as `NAME-compact-no-traces.tar.gz`. Traces are most of a run's

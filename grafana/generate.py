@@ -47,6 +47,8 @@ def host(metric, extra, sel):
 
 
 CLEAN = ', stream="clean"'
+# Streams with nothing dropped on purpose: clean and click streams.
+UNDROPPED = ', stream=~"clean|click"'
 HIGH_LOAD = CLEAN + ', load="high"'
 
 
@@ -57,21 +59,30 @@ def sent_fps(sel):
     return f'(1 / histogram_quantile(0.5, sum by (stream_key) ({host("moonshine_frame_interval_seconds", "", sel)})))'
 
 
-def received_fps(sel):
-    """Per stream, the frames the client received per second (after its warmup)."""
-    hist = f'sum by (stream_key) ({whole("moonshine_client_frame_interval_seconds", sel)})'
-    return f'(histogram_count({hist}) / histogram_sum({hist}))'
+def per_side_fps(sel):
+    """The frame rate Moonshine sent at, averaged over the side's streams, as a scalar: frame intervals for each side
+    at its own rate, so two runs at different modes compare."""
+    return f'scalar(avg({sent_fps(sel)}))'
 
 
 def delivered(sel):
-    """The average stream's received frame rate as a share of what Moonshine sent, in percent (capped at 100 a
-    stream). Per stream, so streams at different rates don't blur together."""
-    return f'100 * avg(clamp_max({received_fps(sel)} / {sent_fps(sel)}, 1))'
+    """The average stream's share of Moonshine's frames that reached the client, in percent: received over received
+    plus missing (frame numbers that never arrived), both after the client's warmup. Counted, not estimated from frame
+    rates, and per stream, so streams at different rates don't blur together."""
+    received = f'sum by (stream_key) ({whole("moonshine_client_frames_total", sel)})'
+    missing = f'(sum by (stream_key) ({whole("moonshine_client_frames_missing_total", sel)}) or 0 * {received})'
+    return f'100 * avg({received} / ({received} + {missing}))'
 
 
 def switching(sel):
     """The streams whose captured content changed color space, by stream key."""
     return f'({host("moonshine_content_switches_total", "", sel)} > 0)'
+
+
+def clean_switching(sel):
+    """The switching streams that lost no frames, so every keyframe in them was Moonshine's own."""
+    lossy = f'(sum by (stream_key) ({whole("moonshine_client_frames_missing_total", sel)}) > 0)'
+    return f'({switching(sel)} unless on (stream_key) {lossy})'
 
 
 # Empty when run B is run A, so B's series vanish and one run shows as one number, one set of bars, one line.
@@ -85,11 +96,11 @@ def only_if_compared(expr):
     return f"({expr}) and on () ({DIFFERENT_RUNS})"
 
 # Each scored metric as PromQL over the client's streams that `sel` picks (Moonshine's are joined to them), in the
-# metric's unit in targets.json: frame intervals multiply seconds by $fps, or by the frame rate Moonshine sent at.
+# metric's unit in targets.json: frame intervals multiply seconds by the frame rate Moonshine sent at (per stream, or the side's average).
 SCORED = {
     # 0 only when there were streams to count in: a side without them is "not measured", not a clean score.
     "bad_pictures": lambda sel: f'sum({whole("moonshine_client_frames_total", sel + ", result!=\"ok\"")}) or 0 * sum({whole("moonshine_client_frames_total", sel)})',
-    "missing_clean": lambda sel: f'sum({whole("moonshine_client_frames_missing_total", sel + CLEAN)}) or 0 * sum({whole("moonshine_client_frames_total", sel + CLEAN)})',
+    "missing_clean": lambda sel: f'sum({whole("moonshine_client_frames_missing_total", sel + UNDROPPED)}) or 0 * sum({whole("moonshine_client_frames_total", sel + UNDROPPED)})',
     # Each stream's p99 in its own frame intervals (Moonshine's sending rate), then the median stream: pooling streams
     # at different rates mixes their intervals, and one stalled stream (lost frames and delivered rate show it) would
     # otherwise outweigh the rest.
@@ -97,17 +108,18 @@ SCORED = {
         f'quantile(0.5, histogram_quantile(0.99, sum by (stream_key) ('
         f'{whole("moonshine_client_frame_interval_seconds", sel + CLEAN)})) * {sent_fps(sel + CLEAN)})'),
     "fps_delivered": lambda sel: delivered(sel + CLEAN),
-    "server_p99_ms": lambda sel: f'1000 * histogram_quantile(0.99, sum({host("moonshine_frame_duration_seconds", CAPTURED, sel)}))',
-    "freeze_p95": lambda sel: f'histogram_quantile(0.95, sum({whole("moonshine_client_freeze_duration_seconds", sel)})) * $fps',
+    # Not the loss streams: their extra keyframes would make the tail the keyframes' encode time.
+    "server_p99_ms": lambda sel: f'1000 * histogram_quantile(0.99, sum({host("moonshine_frame_duration_seconds", CAPTURED, sel + ", stream!=\"loss\"")}))',
+    "freeze_p95": lambda sel: f'histogram_quantile(0.95, sum({whole("moonshine_client_freeze_duration_seconds", sel)})) * {per_side_fps(sel)}',
     "recovered_without_keyframe": lambda sel: (
         f'100 * (histogram_count(sum({whole("moonshine_client_freeze_duration_seconds", sel + ", recovered_by=\"recovery_frame\"")})) or vector(0))'
         f' / histogram_count(sum({whole("moonshine_client_freeze_duration_seconds", sel)}))'),
-    "click_median": lambda sel: f'histogram_quantile(0.5, sum({whole("moonshine_client_click_duration_seconds", sel)})) * $fps',
+    "click_median": lambda sel: f'histogram_quantile(0.5, sum({whole("moonshine_client_click_duration_seconds", sel)})) * {per_side_fps(sel)}',
     # Both from Moonshine, after watch's warmup (which holds each stream's opening keyframe), on the clean streams
-    # whose content switched: another stream's keyframes (a client asking to recover) aren't switches.
+    # whose content switched and that lost nothing: a keyframe the client asked for to recover isn't a switch's.
     "keyframes_per_switch": lambda sel: (
-        f'sum({host("moonshine_frames_total", "frame_kind=\"key\"", sel + CLEAN)} and on (stream_key) {switching(sel + CLEAN)})'
-        f' / (sum({switching(sel + CLEAN)}) > 0)'),
+        f'sum({host("moonshine_frames_total", "frame_kind=\"key\"", sel + CLEAN)} and on (stream_key) {clean_switching(sel + CLEAN)})'
+        f' / (sum({clean_switching(sel + CLEAN)}) > 0)'),
     "load_fps": lambda sel: delivered(sel + HIGH_LOAD),
     "peak_bitrate": lambda sel: (
         f'100 * max({whole("moonshine_client_bitrate_peak_bit_per_second", sel + CLEAN)})'

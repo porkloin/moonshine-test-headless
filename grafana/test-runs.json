@@ -849,7 +849,7 @@
     {
       "type": "stat",
       "title": "Lost frames",
-      "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+      "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -860,7 +860,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))",
+          "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=~\"clean|click\"}[$__range]))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1017,7 +1017,7 @@
     {
       "type": "stat",
       "title": "Delivered frame rate",
-      "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+      "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1028,7 +1028,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])))))), 1))",
+          "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])))))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1101,7 +1101,7 @@
     {
       "type": "stat",
       "title": "Host latency p99",
-      "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+      "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1112,7 +1112,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range])))))",
+          "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream!=\"loss\"}[$__range])))))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1196,7 +1196,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))) * $fps",
+          "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))))))))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1353,7 +1353,7 @@
     {
       "type": "stat",
       "title": "Input latency p50",
-      "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+      "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1364,7 +1364,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))) * $fps",
+          "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))))))))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1388,11 +1388,11 @@
               },
               {
                 "color": "yellow",
-                "value": 1.000000001
+                "value": 2.000000001
               },
               {
                 "color": "red",
-                "value": 2.000000001
+                "value": 3.000000001
               }
             ]
           },
@@ -1437,7 +1437,7 @@
     {
       "type": "stat",
       "title": "HDR switch keyframes",
-      "description": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched.\n\nGreen \u2264 0.7, yellow \u2264 1.2, red beyond. The thresholds are in targets.json.",
+      "description": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched and that lost no frames (so no keyframe was the client asking to recover).\n\nGreen \u2264 0.7, yellow \u2264 1.2, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1448,7 +1448,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) and on (stream_key) ((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0)) / (sum(((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0)) > 0)",
+          "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) and on (stream_key) (((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) > 0))) / (sum((((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range])) > 0))) > 0)",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1521,7 +1521,7 @@
     {
       "type": "stat",
       "title": "FPS under GPU load",
-      "description": "Frames the client received per second on clean streams with the GPU under heavy load, as a share of the frames Moonshine sent.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+      "description": "The share of the frames Moonshine sent that the client received on clean streams with the GPU under heavy load (received over received plus missing frame numbers, after the warmup).\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1532,7 +1532,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])))))), 1))",
+          "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])))))",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -2259,7 +2259,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2270,7 +2270,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2427,7 +2427,7 @@
         {
           "type": "stat",
           "title": "Delivered frame rate",
-          "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2438,7 +2438,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])))))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2511,7 +2511,7 @@
         {
           "type": "stat",
           "title": "Host latency p99",
-          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2522,7 +2522,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream!=\"loss\"}[$__range])))))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2606,7 +2606,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))))))))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2763,7 +2763,7 @@
         {
           "type": "stat",
           "title": "Input latency p50",
-          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2774,7 +2774,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))))))))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2798,11 +2798,11 @@
                   },
                   {
                     "color": "yellow",
-                    "value": 1.000000001
+                    "value": 2.000000001
                   },
                   {
                     "color": "red",
-                    "value": 2.000000001
+                    "value": 3.000000001
                   }
                 ]
               },
@@ -2847,7 +2847,7 @@
         {
           "type": "stat",
           "title": "HDR switch keyframes",
-          "description": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched.\n\nGreen \u2264 0.7, yellow \u2264 1.2, red beyond. The thresholds are in targets.json.",
+          "description": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched and that lost no frames (so no keyframe was the client asking to recover).\n\nGreen \u2264 0.7, yellow \u2264 1.2, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2858,7 +2858,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) and on (stream_key) ((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0)) / (sum(((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0)) > 0)",
+              "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) and on (stream_key) (((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) > 0))) / (sum((((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range])) > 0))) > 0)",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -2931,7 +2931,7 @@
         {
           "type": "stat",
           "title": "FPS under GPU load",
-          "description": "Frames the client received per second on clean streams with the GPU under heavy load, as a share of the frames Moonshine sent.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams with the GPU under heavy load (received over received plus missing frame numbers, after the warmup).\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2942,7 +2942,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", load=\"high\"}[$__range])))))",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -3695,7 +3695,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -3706,7 +3706,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -3718,7 +3718,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -3895,7 +3895,7 @@
         {
           "type": "stat",
           "title": "Delivered frame rate",
-          "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -3906,7 +3906,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -3918,7 +3918,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])))))), 1))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -3995,7 +3995,7 @@
         {
           "type": "stat",
           "title": "Host latency p99",
-          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -4006,7 +4006,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream!=\"loss\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -4018,7 +4018,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream!=\"loss\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -4106,7 +4106,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -4118,7 +4118,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5514,7 +5514,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -5525,7 +5525,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -5537,7 +5537,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5714,7 +5714,7 @@
         {
           "type": "stat",
           "title": "Delivered frame rate",
-          "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -5725,7 +5725,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -5737,7 +5737,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])))))), 1))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5814,7 +5814,7 @@
         {
           "type": "stat",
           "title": "Host latency p99",
-          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -5825,7 +5825,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream!=\"loss\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -5837,7 +5837,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream!=\"loss\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5925,7 +5925,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -5937,7 +5937,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7333,7 +7333,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -7344,7 +7344,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7356,7 +7356,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7533,7 +7533,7 @@
         {
           "type": "stat",
           "title": "Delivered frame rate",
-          "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -7544,7 +7544,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7556,7 +7556,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])))))), 1))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7633,7 +7633,7 @@
         {
           "type": "stat",
           "title": "Host latency p99",
-          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -7644,7 +7644,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream!=\"loss\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7656,7 +7656,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream!=\"loss\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7744,7 +7744,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7756,7 +7756,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9152,7 +9152,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -9163,7 +9163,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9175,7 +9175,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9352,7 +9352,7 @@
         {
           "type": "stat",
           "title": "Delivered frame rate",
-          "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -9363,7 +9363,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9375,7 +9375,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])))))), 1))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9452,7 +9452,7 @@
         {
           "type": "stat",
           "title": "Host latency p99",
-          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -9463,7 +9463,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream!=\"loss\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9475,7 +9475,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream!=\"loss\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9563,7 +9563,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9575,7 +9575,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -10971,7 +10971,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -10982,7 +10982,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -10994,7 +10994,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11071,7 +11071,7 @@
         {
           "type": "stat",
           "title": "HDR switch keyframes",
-          "description": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched.\n\nGreen \u2264 0.7, yellow \u2264 1.2, red beyond. The thresholds are in targets.json.",
+          "description": "Keyframes Moonshine sent per change in the captured content's color space (SDR, HDR10, scRGB), on the streams whose content switched and that lost no frames (so no keyframe was the client asking to recover).\n\nGreen \u2264 0.7, yellow \u2264 1.2, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11082,7 +11082,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) and on (stream_key) ((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0)) / (sum(((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0)) > 0)",
+              "expr": "sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) and on (stream_key) (((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) > 0))) / (sum((((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) > 0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11094,7 +11094,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) and on (stream_key) ((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0)) / (sum(((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0)) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum((last_over_time(moonshine_frames_total{frame_kind=\"key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) and on (stream_key) (((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) > 0))) / (sum((((last_over_time(moonshine_content_switches_total{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range]))) > 0) unless on (stream_key) (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", stream=\"clean\"}[$__range])) > 0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11182,7 +11182,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11194,7 +11194,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11659,7 +11659,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11670,7 +11670,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11682,7 +11682,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11759,7 +11759,7 @@
         {
           "type": "stat",
           "title": "Input latency p50",
-          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11770,7 +11770,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11782,7 +11782,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11806,11 +11806,11 @@
                   },
                   {
                     "color": "yellow",
-                    "value": 1.000000001
+                    "value": 2.000000001
                   },
                   {
                     "color": "red",
-                    "value": 2.000000001
+                    "value": 3.000000001
                   }
                 ]
               },
@@ -12277,7 +12277,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -12288,7 +12288,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12300,7 +12300,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12377,7 +12377,7 @@
         {
           "type": "stat",
           "title": "Input latency p50",
-          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -12388,7 +12388,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12400,7 +12400,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.5, sum(last_over_time(moonshine_client_click_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"clickflash:no-vsync\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12424,11 +12424,11 @@
                   },
                   {
                     "color": "yellow",
-                    "value": 1.000000001
+                    "value": 2.000000001
                   },
                   {
                     "color": "red",
-                    "value": 2.000000001
+                    "value": 3.000000001
                   }
                 ]
               },
@@ -12895,7 +12895,7 @@
         {
           "type": "stat",
           "title": "Lost frames",
-          "description": "Frames that never reached the client's decoder on streams with nothing dropped.\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
+          "description": "Frames that never reached the client's decoder on streams with nothing dropped on purpose (clean and click streams).\n\nGreen \u2264 0, yellow \u2264 3, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -12906,7 +12906,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))",
+              "expr": "sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=~\"clean|click\"}[$__range]))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -12918,7 +12918,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(sum(last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=~\"clean|click\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -12995,7 +12995,7 @@
         {
           "type": "stat",
           "title": "FPS under GPU load",
-          "description": "Frames the client received per second on clean streams with the GPU under heavy load, as a share of the frames Moonshine sent.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams with the GPU under heavy load (received over received plus missing frame numbers, after the warmup).\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -13006,7 +13006,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -13018,7 +13018,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])))))), 1))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", load=\"high\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -13195,7 +13195,7 @@
         {
           "type": "stat",
           "title": "Delivered frame rate",
-          "description": "Frames the client received per second on clean streams, as a share of the frames Moonshine sent: each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
+          "description": "The share of the frames Moonshine sent that the client received on clean streams (received over received plus missing frame numbers, after the warmup): each stream on its own, averaged.\n\nGreen \u2265 99%, yellow \u2265 90%, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -13206,7 +13206,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])))))), 1))",
+              "expr": "100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -13218,7 +13218,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * avg(clamp_max((histogram_count(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))) / histogram_sum(sum by (stream_key) (last_over_time(moonshine_client_frame_interval_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])))) / (1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])))))), 1))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * avg(sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) / (sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) + (sum by (stream_key) (last_over_time(moonshine_client_frames_missing_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])) or 0 * sum by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -13295,7 +13295,7 @@
         {
           "type": "stat",
           "title": "Host latency p99",
-          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet.\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
+          "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -13306,7 +13306,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range])))))",
+              "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream!=\"loss\"}[$__range])))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -13318,7 +13318,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream!=\"loss\"}[$__range])))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -13406,7 +13406,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) * $fps",
+              "expr": "histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))))))))",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -13418,7 +13418,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) * $fps) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(histogram_quantile(0.95, sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
