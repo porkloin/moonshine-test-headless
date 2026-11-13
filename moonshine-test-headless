@@ -634,8 +634,9 @@ fetch() {
 		[ -z "$(git -C "$src" status --porcelain)" ] || commit[$key]+=-dirty
 		dir[$key]=/work/$key
 		rm -rf "${dir[$key]}" && mkdir -p "${dir[$key]}"
+		# With fresh mtimes (-m): files older than a cached build of another ref would otherwise look built.
 		git -C "$src" ls-files -z --cached --others --exclude-standard |
-			tar -C "$src" --null -T - -cf - | tar -C "${dir[$key]}" -xf - || return 1
+			tar -C "$src" --null -T - -cf - | tar -C "${dir[$key]}" -xmf - || return 1
 		return 0
 	fi
 	[ -d "$mirror" ] || git init -q --bare "$mirror"
