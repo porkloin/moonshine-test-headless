@@ -69,7 +69,8 @@
 #   --max-packet-size BYTES
 #                       clamp Moonshine's video packet size: `max_packet_size = BYTES` under [stream.video] in
 #                       its config, both test and baseline (Moonshine's default: no clamp). Keeps the UDP
-#                       payloads under a tunnel's MTU, e.g. 1024 for Tailscale's 1280
+#                       payloads under a tunnel's MTU (a remote client over Tailscale already asks for 1024,
+#                       as Moonlight does)
 #   --moonshine-config KEY=VALUE
 #                       set KEY in the tested Moonshine's config (repeatable): a dotted path into its TOML, e.g.
 #                       stream.video.rate_control=vbr. VALUE is TOML (a number, true, [1, 2]), or else a string.
@@ -1036,7 +1037,12 @@ client() {
 		shift 2
 		# A stream that sets its own decoding (bench streams: --decode none) keeps it.
 		for a in "$@"; do [ "$a" != --decode ] || decoding=(); done
-		set -- stream "$app" --mode "${mw}x${mh}x${mfps}" --bitrate "$mkbps" "${decoding[@]}" "$@"
+		# Over loopback, stream as a client on the LAN would: moonlight-common-c counts 127.0.0.1 as a
+		# remote host (smaller packets, less bitrate). A remote client decides from the address it
+		# sees, as Moonlight does (Tailscale's is remote).
+		local lan=()
+		[ "$client_where" != loopback ] || lan=(--packet-size 1392)
+		set -- stream "$app" --mode "${mw}x${mh}x${mfps}" --bitrate "$mkbps" "${lan[@]}" "${decoding[@]}" "$@"
 		if [ $traces = 1 ] && [ -n "$otel" ]; then
 			traced "$@"
 			return

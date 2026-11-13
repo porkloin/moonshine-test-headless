@@ -148,6 +148,11 @@ one trace per frame with Moonshine's and the client's spans.
   57998, control 57999, audio 58000), which the `run-remote` label publishes along with 58011 UDP for `clock-serve`,
   so a Moonshine already on the host keeps the defaults. The client gets `--port 57989` and learns the rest from
   `/serverinfo` and RTSP. Loopback runs keep the defaults.
+- Packets and RFI, as moonlight-qt: the client decides LAN or remote from the host's address, so over Tailscale
+  (100.64/10, outside the private ranges) it asks for 1024-byte packets and 500 kb/s less bitrate, and on a LAN
+  1392-byte packets. Loopback streams pass `--packet-size 1392`, as a LAN client, since moonlight-common-c counts
+  127.0.0.1 as remote. Invalidation is offered for HEVC and AV1 only, as every moonlight-qt decoder does, so H.264
+  loss streams recover with IDRs.
 
 ## Workloads
 
