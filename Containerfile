@@ -9,7 +9,7 @@
 # commit on its main branch, built against this image's packages, and its image of that commit (sha-COMMIT, which
 # its CI publishes for every main commit) for --client runs on another machine; and a moonshine-otel release, built
 # at run time (view/Containerfile pins the same release).
-ARG GAMESTREAM_TEST_CLIENT_COMMIT=afef9d5
+ARG GAMESTREAM_TEST_CLIENT_COMMIT=60ae0cc
 ARG MOONSHINE_OTEL_VERSION=v1.0.2
 
 FROM docker.io/library/archlinux:latest
