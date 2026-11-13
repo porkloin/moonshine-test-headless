@@ -4,14 +4,13 @@
 #   podman build -t moonshine-test-headless .
 #
 # Arch, because its Mesa has the H.264 and H.265 video codecs enabled.
-
-FROM docker.io/library/archlinux:latest AS client
-RUN pacman -Syu --noconfirm --needed base-devel cmake pkgconf openssl curl expat util-linux-libs opus ffmpeg libva libnl \
-    && pacman -Scc --noconfirm
-COPY third_party/gamestream-test-client /src
-RUN cmake -S /src/client -B /build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    && cmake --build /build -j"$(nproc)" \
-    && cmake --install /build --prefix /usr/local
+#
+# The tools it uses, pinned here (bump them here, only to what their main branch has): gamestream-test-client at a
+# commit on its main branch, built against this image's packages, and its image of that commit (sha-COMMIT, which
+# its CI publishes for every main commit) for --client runs on another machine; and a moonshine-otel release, built
+# at run time (view/Containerfile pins the same release).
+ARG GAMESTREAM_TEST_CLIENT_COMMIT=afef9d5
+ARG MOONSHINE_OTEL_VERSION=v1.0.2
 
 FROM docker.io/library/archlinux:latest
 LABEL org.opencontainers.image.source=https://github.com/porkloin/moonshine-test-headless
@@ -29,13 +28,21 @@ RUN pacman -Syu --noconfirm --needed \
       openssl curl expat util-linux-libs ffmpeg \
       libva-utils intel-media-driver openssh libnl hwdata \
     && pacman -Scc --noconfirm
-COPY --from=client /usr/local/bin/gamestream-test-client /usr/local/bin/
+# gamestream-test-client, built here so it links against these packages.
+ARG GAMESTREAM_TEST_CLIENT_COMMIT
+RUN git clone --quiet https://github.com/porkloin/gamestream-test-client /tmp/gtc \
+    && git -C /tmp/gtc -c advice.detachedHead=false checkout --quiet "$GAMESTREAM_TEST_CLIENT_COMMIT" \
+    && git -C /tmp/gtc submodule update --quiet --init --recursive --depth 1 \
+    && cmake -S /tmp/gtc/client -B /tmp/gtc-build -DCMAKE_BUILD_TYPE=RelWithDebInfo > /dev/null \
+    && cmake --build /tmp/gtc-build -j"$(nproc)" > /dev/null \
+    && install -m755 /tmp/gtc-build/gamestream-test-client /usr/local/bin/ \
+    && rm -rf /tmp/gtc /tmp/gtc-build \
+    && gamestream-test-client --help > /dev/null
 COPY moonshine-test-headless /usr/local/bin/moonshine-test-headless
 COPY battery.json targets.json grafana/test-runs-queries.json /usr/share/moonshine-test-headless/
-# The client image matching the client built in here, for --client runs on another machine (CI passes the
-# gamestream-test-client commit's tag).
-ARG CLIENT_IMAGE=ghcr.io/porkloin/gamestream-test-client:latest
-RUN echo "$CLIENT_IMAGE" > /usr/share/moonshine-test-headless/client-image
+# The client's image of the same commit, for --client runs on another machine.
+RUN echo "ghcr.io/porkloin/gamestream-test-client:sha-$GAMESTREAM_TEST_CLIENT_COMMIT" \
+      > /usr/share/moonshine-test-headless/client-image
 # hdrneon (the hdrneon and hdrneon-cycle workloads), from its latest release, checked against its published checksums.
 RUN cd /tmp && name=hdrneon-linux-x86_64 \
     && curl -fsSLO "https://github.com/porkloin/hdrneon/releases/latest/download/$name.tar.gz" \
@@ -54,7 +61,9 @@ RUN cd /tmp && name=clickflash-linux-x86_64 \
 # runs board asks.
 COPY --from=docker.io/prom/prometheus:v3.15.1 /bin/prometheus /usr/local/bin/prometheus
 # Built at run time; it only reads Moonshine's statistics socket, so one build serves every Moonshine.
-COPY third_party/moonshine-otel /usr/share/moonshine-test-headless/moonshine-otel
+ARG MOONSHINE_OTEL_VERSION
+RUN git clone --depth 1 --branch "$MOONSHINE_OTEL_VERSION" https://github.com/porkloin/moonshine-otel \
+      /usr/share/moonshine-test-headless/moonshine-otel
 RUN systemctl --global enable pipewire.socket pipewire-pulse.socket wireplumber.service
 
 ENV NVIDIA_DRIVER_CAPABILITIES=all

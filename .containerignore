@@ -1,4 +1,4 @@
 results
-third_party/moonshine-otel/.git
-third_party/moonshine-otel/target
 moonshine-test-[0-9]*
+# Checkouts left from when the tools were submodules.
+third_party

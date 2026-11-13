@@ -1,9 +1,11 @@
 # ghcr.io/porkloin/moonshine-test-headless:view: explore a run's results.tar.gz in a throwaway Grafana. Built from
 # the repository root: podman build -f view/Containerfile .
-# moonshine-otel, static, for the summary label.
+# moonshine-otel, static, for the summary label: the release the main Containerfile pins.
+ARG MOONSHINE_OTEL_VERSION=v1.0.2
 FROM docker.io/library/rust:1-alpine AS otel
-RUN apk add --no-cache musl-dev
-COPY third_party/moonshine-otel /src
+ARG MOONSHINE_OTEL_VERSION
+RUN apk add --no-cache musl-dev git
+RUN git clone --depth 1 --branch "$MOONSHINE_OTEL_VERSION" https://github.com/porkloin/moonshine-otel /src
 RUN cd /src && cargo build --release --locked -p moonshine-otel && strip target/release/moonshine-otel
 
 FROM docker.io/grafana/grafana:13.2.4
@@ -14,7 +16,7 @@ COPY --from=docker.io/grafana/tempo:2.10.8 /tempo /usr/local/bin/tempo
 COPY view/moonshine-test-view view/moonshine-test-summary view/moonshine-test-compact /usr/local/bin/
 COPY grafana/test-runs-queries.json targets.json /usr/share/moonshine-test-view/
 COPY ["grafana/test-runs.json", "/usr/share/moonshine-test-view/dashboards/Moonshine tests/"]
-COPY third_party/moonshine-otel/observability/grafana/dashboards/Moonshine/ /usr/share/moonshine-test-view/dashboards/Moonshine/
+COPY --from=otel /src/observability/grafana/dashboards/Moonshine/ /usr/share/moonshine-test-view/dashboards/Moonshine/
 WORKDIR /results
 # Shares the host's network, so several viewers run at once: the script takes free 127.0.0.1 ports and prints the link.
 # The current folder read-only, as /results.
