@@ -1270,7 +1270,8 @@ stream_row() {
 		+ "\(.frames) frames at \(.fps * 10 | round / 10) fps, \(.missing) missing, \(.idr) keyframes"
 		+ (if .dropped_frames + .dropped_packets + .rfi_requests > 0 then ", \(.rfi_requests) RFI requests, \(.recovery_frames) recovery frames" else "" end)
 		+ (if .decode_errors + .corrupt > 0 then ", \(.decode_errors) decode errors, \(.corrupt) corrupt" else "" end)
-		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"' "$2")
+		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"
+		+ (if .display_hz != null then "; on a \(.display_hz) Hz display: \(.display_judder) judder, \(.display_dropped) dropped, \(.display_latency_ms_p50 * 10 | round / 10) ms to screen (paced: \(.paced_judder) judder, \(.paced_dropped) dropped, \(.paced_latency_ms_p50 * 10 | round / 10) ms)" else "" end)' "$2")
 	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
 		if .decode_errors + .corrupt > 0 then "pictures that didn'"'"'t decode" else empty end,
 		if .stalled_ms >= .seconds * 500 then "frozen half the stream or more" else empty end] | join(", ")' "$2")
