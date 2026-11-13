@@ -160,9 +160,9 @@
       "what": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.",
       "unit": "frame intervals",
       "better": "lower",
-      "target": 1,
-      "acceptable": 2,
-      "basis": "From the injected click to the decoded flash. The app's next frame and its render take about one interval, so 1 is the floor.",
+      "target": 2,
+      "acceptable": 3,
+      "basis": "From the injected click to the decoded flash, the whole chain but the input device and display: the app's next frame (about one interval: waiting for it, its render and the compositor's capture), then Moonshine's capture to send, the network both ways and the client's decode. At 120 fps over a LAN the last three take most of another interval, so 2 is the target.",
       "see": [
         {
           "label": "Input lag",
@@ -274,7 +274,7 @@
     }
   ],
   "click_context": {
-    "about": "What a click's latency feels like next to everyday hardware. The test measures from the client injecting a click to the client finishing the decode of the flash, over loopback: no input device, network or display. The parts a real setup adds, and whole-chain measurements of local play and cloud streaming, come from published tests, each one setup and method; treat them as rough.",
+    "about": "What a click's latency feels like next to everyday hardware. The test measures from the client injecting a click to the client finishing the decode of the flash: no input device or display (and over loopback, no network). The parts a real setup adds, and whole-chain measurements of local play and cloud streaming, come from published tests, each one setup and method; treat them as rough.",
     "adds": [
       {
         "part": "input device",

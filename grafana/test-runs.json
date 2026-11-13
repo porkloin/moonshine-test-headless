@@ -1353,7 +1353,7 @@
     {
       "type": "stat",
       "title": "Input latency p50",
-      "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+      "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1388,11 +1388,11 @@
               },
               {
                 "color": "yellow",
-                "value": 1.000000001
+                "value": 2.000000001
               },
               {
                 "color": "red",
-                "value": 2.000000001
+                "value": 3.000000001
               }
             ]
           },
@@ -2763,7 +2763,7 @@
         {
           "type": "stat",
           "title": "Input latency p50",
-          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2798,11 +2798,11 @@
                   },
                   {
                     "color": "yellow",
-                    "value": 1.000000001
+                    "value": 2.000000001
                   },
                   {
                     "color": "red",
-                    "value": 2.000000001
+                    "value": 3.000000001
                   }
                 ]
               },
@@ -11759,7 +11759,7 @@
         {
           "type": "stat",
           "title": "Input latency p50",
-          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11806,11 +11806,11 @@
                   },
                   {
                     "color": "yellow",
-                    "value": 1.000000001
+                    "value": 2.000000001
                   },
                   {
                     "color": "red",
-                    "value": 2.000000001
+                    "value": 3.000000001
                   }
                 ]
               },
@@ -12377,7 +12377,7 @@
         {
           "type": "stat",
           "title": "Input latency p50",
-          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 1 frames, yellow \u2264 2 frames, red beyond. The thresholds are in targets.json.",
+          "description": "The median time from the client sending a click to it decoding the flash the click caused (to decoded, not to photons), in frame intervals.\n\nGreen \u2264 2 frames, yellow \u2264 3 frames, red beyond. The thresholds are in targets.json.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -12424,11 +12424,11 @@
                   },
                   {
                     "color": "yellow",
-                    "value": 1.000000001
+                    "value": 2.000000001
                   },
                   {
                     "color": "red",
-                    "value": 2.000000001
+                    "value": 3.000000001
                   }
                 ]
               },
