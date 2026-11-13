@@ -93,7 +93,8 @@
 #                    or its logs/otlp, one or more, and it prints the link to the test runs board over them
 #     summary        print summary.md again from a bundle's telemetry: runlabel summary IMAGE PATH [OTHER]
 #                    (the checks section isn't remade: the checks aren't in the telemetry)
-#     compact        write NAME-compact.tar.gz beside a bundle: the same summary from a smaller telemetry spool
+#     compact        write NAME-compact.tar.gz beside a bundle: the same summary from a smaller telemetry spool;
+#                    still too big? add --no-traces to leave out the traces too (same summary, no traces in Grafana)
 #
 # Results go to ./moonshine-test-<time>-<refs>/ in the folder you ran it from (/results here): summary.md (for the pull request: the
 # machines, the stream and the report card, from the telemetry), logs/ (with the telemetry in logs/otlp),
@@ -331,6 +332,7 @@ cleanup() {
 	if [ "$(stat -c %s "$out/results.tar.gz")" -gt 25000000 ]; then
 		echo "results.tar.gz is over GitHub's 25 MB limit; this makes $dir/results-compact.tar.gz to attach instead:"
 		echo "  podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view $dir/results.tar.gz"
+		echo "If that's still too big, add --no-traces: the same summary without Grafana's per-frame traces."
 		echo
 	fi
 	echo "To explore it in Grafana (anyone with the file can):"

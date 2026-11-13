@@ -296,8 +296,12 @@ The `compact` label writes `NAME-compact.tar.gz` next to a bundle (the current d
 `view/moonshine-test-compact` runs `moonshine-otel compact` on its `logs/otlp`, which drops every metric point that
 repeats its series' previous value. The exporter sends cumulative values every 5 s and keeps sending every series it
 has seen, so most points in a long run repeat ended streams. A full `--baseline` run went from 45 MB to about 21 MB,
-with the same `summary.md`. Traces are kept as they are. The harness keeps the full bundle, and prints the command
-when it's over 25 MB.
+with the same `summary.md`. Traces are kept as they are, unless `--no-traces` is passed: then the `*.traces.pb` files
+are left out of the compacted spool and it's written as `NAME-compact-no-traces.tar.gz`. Traces are most of a run's
+telemetry (323 of 349 MB compacted, in a full `--baseline` 4k120 run), and the summary reads only metrics, so this
+gets such a run under 25 MB (about 17 MB) with the same report card; Grafana then has no traces to show. Either way,
+the script prints the next step when the copy is still over 25 MB. The harness keeps the full bundle, and prints the
+command (and the `--no-traces` hint) when it's over 25 MB.
 
 Old data needs settings the long-running stacks don't have: Prometheus takes samples out of order within 365 days
 and keeps them for 100 years (retention counts from the newest sample); Tempo dates blocks by their spans
