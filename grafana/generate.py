@@ -3,19 +3,32 @@
 
     python3 grafana/generate.py
 
-Builds on moonshine-otel's dashboard generator (its panels and layout), from the third_party/moonshine-otel
-submodule, or the checkout at MOONSHINE_OTEL. Edit this file rather than the JSON.
+Builds on moonshine-otel's dashboard generator (its panels and layout): from the checkout at MOONSHINE_OTEL, or
+the release the Containerfile pins, cloned into ~/.cache/moonshine-test-headless. Edit this file rather than the JSON.
 """
 
 import importlib.util
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TARGETS = HERE.parent / "targets.json"
-MOONSHINE_OTEL = Path(os.environ.get("MOONSHINE_OTEL") or HERE.parent / "third_party" / "moonshine-otel")
+
+
+def pinned_moonshine_otel():
+    """The moonshine-otel release the Containerfile pins, cloned once into the cache."""
+    version = re.search(r"^ARG MOONSHINE_OTEL_VERSION=(\S+)$", (HERE.parent / "Containerfile").read_text(), re.M)[1]
+    path = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "moonshine-test-headless" / f"moonshine-otel-{version}"
+    if not path.exists():
+        subprocess.run(["git", "clone", "--quiet", "--depth", "1", "--branch", version,
+                        "https://github.com/porkloin/moonshine-otel", str(path)], check=True)
+    return path
+
+
+MOONSHINE_OTEL = Path(os.environ["MOONSHINE_OTEL"]) if os.environ.get("MOONSHINE_OTEL") else pinned_moonshine_otel()
 
 _spec = importlib.util.spec_from_file_location(
     "moonshine_otel_dashboards", MOONSHINE_OTEL / "observability" / "grafana" / "generate.py")

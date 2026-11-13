@@ -11,14 +11,22 @@ podman flags, and how the repository is laid out. README.md is the short version
   measures and the basis for its numbers. The default for `--targets`.
 - `grafana/generate.py`: writes the test runs board (`grafana/test-runs.json`) and its report card's queries for
   `moonshine-otel summary` (`grafana/test-runs-queries.json`), from `battery.json` and `targets.json`, with
-  moonshine-otel's panel helpers (`observability/grafana/generate.py` in `third_party/moonshine-otel`, or in the
-  checkout at `MOONSHINE_OTEL`). Edit it rather than the JSON; a metric in targets.json without a query fails it.
+  moonshine-otel's panel helpers (`observability/grafana/generate.py` of the release the Containerfile pins, cloned
+  into `~/.cache/moonshine-test-headless/`, or of the checkout at `MOONSHINE_OTEL`). Edit it rather than the JSON; a metric in targets.json without a query fails it.
 - `Containerfile`: Arch Linux (its Mesa has the H.264 and H.265 video codecs enabled), the systemd user manager,
   PipeWire and Xwayland for Moonshine's session, the Rust toolchain, the workloads (vkcube, glxgears, hdrneon), and the
-  test client built from source.
-- `third_party/gamestream-test-client`: the headless Moonlight client (submodule).
-- `third_party/moonshine-otel`: reads Moonshine's statistics socket, records every frame host to client as
-  telemetry, compares recordings, and writes `summary.md` from a run's telemetry (submodule).
+  test client built from source. It pins the two tools the harness uses, as `ARG`s at its top:
+  - `GAMESTREAM_TEST_CLIENT_COMMIT`: a commit on [gamestream-test-client](https://github.com/porkloin/gamestream-test-client)'s
+    main branch, the headless Moonlight client. It's built in the image against the image's own packages, and
+    `--client` runs its published image of the same commit (`sha-COMMIT`, which its CI pushes for every main commit).
+  - `MOONSHINE_OTEL_VERSION`: a [moonshine-otel](https://github.com/porkloin/moonshine-otel) release tag. It reads
+    Moonshine's statistics socket, records every frame host to client as telemetry, compares recordings, and writes
+    `summary.md` from a run's telemetry. Cloned into the image and built at run time; `view/Containerfile` pins the
+    same release.
+
+  Bump a pin only to a commit or tag on the tool's main branch, so a squash merge can't leave it pointing at nothing.
+  To try an unmerged client, build with `--build-arg GAMESTREAM_TEST_CLIENT_COMMIT=...` and pass the matching image
+  to `--client-image`.
 - `.github/workflows/image.yml`: builds the image, and pushes it to ghcr.io from `main` and weekly (to follow Arch's
   Mesa).
 
@@ -101,7 +109,7 @@ build with "was not used in the crate graph".
 | `--max-packet-size BYTES` | `max_packet_size = BYTES` under `[stream.video]` in both Moonshines' configs (Moonshine's default: no clamp), clamping the video packets' UDP payload to BYTES + 16, e.g. 1024 to stay under Tailscale's 1280 MTU. Recorded on the run's labels; the configs land in `logs/` |
 | `--moonshine-config KEY=VALUE` | set KEY in the tested Moonshine's config, repeatable; `--baseline-moonshine-config` for the baseline's. KEY is a dotted path (`stream.video.rate_control`: table `stream.video`, key `rate_control`, the last segment); `set_config` puts it under that table's header when the harness wrote one, replacing a value the harness set (ports, `max_packet_size`), else in a new table at the end (a top-level key before the first table). VALUE is TOML when `tomllib` parses it (`1024`, `true`, `[1, 2]`, `"vbr"`), else a string, since runlabel keeps quotes and the user would otherwise need `'"vbr"'`. The finished config is checked with `tomllib` (the run stops if it isn't valid). Recorded on the run's labels (`config=`, `baseline_config=`); the configs land in `logs/`. Works with `--serve` |
 | `--client USER@HOST` | stream to a client on another machine (needs the `run-remote` label); see [Remote client](#remote-client) |
-| `--client-image IMAGE` | the client image the remote runs: by default `/usr/share/moonshine-test-headless/client-image`, which the image build writes from `--build-arg CLIENT_IMAGE` (CI: `gamestream-test-client:sha-<submodule commit>`, so the remote runs the same client as loopback), else `:latest`. Pulled on the remote each run, or used as is when it's already there (`podman load`). Preflight: podman on the remote, a render node it can open (else software decode), and once Moonshine is up, a TCP connect from the remote to Moonshine's HTTP port (57989) (else the "Remote client" check fails, naming the ports) |
+| `--client-image IMAGE` | the client image the remote runs: by default `/usr/share/moonshine-test-headless/client-image`, which the image build writes from `GAMESTREAM_TEST_CLIENT_COMMIT` (`gamestream-test-client:sha-<commit>`, so the remote runs the same client as loopback), else `:latest`. Pulled on the remote each run, or used as is when it's already there (`podman load`). Preflight: podman on the remote, a render node it can open (else software decode), and once Moonshine is up, a TCP connect from the remote to Moonshine's HTTP port (57989) (else the "Remote client" check fails, naming the ports) |
 | `--decode HOW` | the client's decoding: `hw` (default), `sw`, or a render node. The harness picks the device once from the client's probe and passes `--decode-device`: `hw` takes Moonshine's own GPU over loopback (encode and decode on one device; else the VAAPI GPU with the most video memory), and on a remote client its VAAPI GPU with the most video memory; with no VAAPI GPU (NVIDIA), software. Codecs the device doesn't decode (`decodes` in the probe; HDR HEVC needs `hevc10`) are skipped with a row, like codecs Moonshine doesn't offer, so software decoding never lands in the numbers. The summary's client GPU and driver are that device's. Each stream's client summary records its `decoder`. Bench streams keep `--decode none`. NVIDIA (`run-nvidia`, no `/dev/dri`, no NVDEC VAAPI driver in the image) decodes in software |
 | `--accept-gravitymark-license` | accept GravityMark's license without being asked |
 | `--strict` | exit 1 when a check failed, for CI |
@@ -216,7 +224,7 @@ In order; a failed build stops the run.
 | HDR | with an HDR workload and no statistics socket: skipped, since nothing confirms the streams were HDR |
 | `<workload>: <codec> HDR` failing with "asked for HDR, Moonshine streamed SDR" | an HDR workload with the statistics socket: the stream moonshine-otel recorded wasn't HDR |
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
-| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
+| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames. With a client that models a display, they end with what a display at the stream's rate would show through moonlight-qt's V-Sync (judder, dropped, decoded to on screen) and its frame pacer. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
 | `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
 | Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
 | Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict). An ok row counts the report's other verdicts ("no regression; 9 improved, 4 changed") |
@@ -320,8 +328,8 @@ order, for `moonshine-otel summary --queries` (the image has it, and targets.jso
 `/usr/share/moonshine-test-headless/`). Regenerate both after changing the board, targets.json or battery.json:
 
 ```sh
-python3 grafana/generate.py                                  # with third_party/moonshine-otel checked out
-MOONSHINE_OTEL=../moonshine-otel python3 grafana/generate.py # or another checkout
+python3 grafana/generate.py                                  # the pinned moonshine-otel release
+MOONSHINE_OTEL=../moonshine-otel python3 grafana/generate.py # or a checkout
 ```
 
 ## Exploring a run
@@ -369,7 +377,7 @@ a run's trace batches.
 ## Building the image
 
 ```sh
-git clone --recursive https://github.com/porkloin/moonshine-test-headless
+git clone https://github.com/porkloin/moonshine-test-headless
 cd moonshine-test-headless
 podman build -t moonshine-test-headless .
 podman container runlabel run localhost/moonshine-test-headless -- --moonshine hgaiser/moonshine

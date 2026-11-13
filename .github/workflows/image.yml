@@ -17,16 +17,13 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Check the scripts
         run: bash -n moonshine-test-headless view/moonshine-test-view view/moonshine-test-summary view/moonshine-test-compact
 
       - name: Build
         run: |
-          client=ghcr.io/porkloin/gamestream-test-client:sha-$(git -C third_party/gamestream-test-client rev-parse --short=7 HEAD)
-          podman build --build-arg CLIENT_IMAGE="$client" -t ghcr.io/${{ github.repository }}:latest .
+          podman build -t ghcr.io/${{ github.repository }}:latest .
           podman build -f view/Containerfile -t ghcr.io/${{ github.repository }}:view .
 
       - name: Push
