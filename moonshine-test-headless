@@ -118,6 +118,11 @@ targets=/usr/share/moonshine-test-headless/targets.json
 mode_args=() default_kbps="" max_packet_size="" decode=hw remote="" config_test=() config_base=()
 # The client image built from the same client as this image's own, when the image says.
 client_image=$(cat /usr/share/moonshine-test-headless/client-image 2>/dev/null || echo ghcr.io/porkloin/gamestream-test-client:latest)
+# The tools' versions (the image's build records them), on every run's metrics and in its versions.json.
+versions=$(cat /usr/share/moonshine-test-headless/versions.json 2>/dev/null || echo '{}')
+harness_version=$(jq -r '.harness // "dev"' <<< "$versions")
+otel_version=$(jq -r '.otel // "N/A"' <<< "$versions")
+client_version=$(jq -r '.client // "N/A"' <<< "$versions")
 while [ $# -gt 0 ]; do
 	case $1 in
 	--seconds) seconds=${2:?--seconds needs a number}; shift 2 ;;
@@ -1080,6 +1085,24 @@ $(printf '%q ' "${args[@]}")" || status=$?
 # run_info: the run's name on its metrics (the code under test, its commit, then when the run started: the results
 # folder's UTC time), and the facts no measurement carries as moonshine.test.info samples: the host, the client,
 # the code and the stream's settings. Once per run, at its first traced stream.
+# client_version_used: the client's version, or the image a remote ran when --client-image picked another.
+client_version_used() {
+	if [ -n "$remote" ] && [ "$client_image" != "$(cat /usr/share/moonshine-test-headless/client-image 2>/dev/null)" ]; then
+		echo "$client_image"
+	else
+		echo "$client_version"
+	fi
+}
+
+# write_versions: versions.json in the results, the tools' and the code's, for whoever opens the bundle.
+write_versions() {
+	local refs
+	refs=$(for k in "${!commit[@]}"; do printf '%s\t%s\n' "$k" "${commit[$k]}"; done |
+		jq -Rn '[inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries')
+	jq -n --arg h "$harness_version" --arg c "$(client_version_used)" --arg o "$otel_version" --argjson code "$refs" \
+		'{"moonshine-test-headless": $h, "gamestream-test-client": $c, "moonshine-otel": $o, code: $code}' > "$out/versions.json"
+}
+
 run_info() {
 	local b k side extra=()
 	b=$(basename "$out") b=${b#moonshine-test-}
@@ -1123,8 +1146,11 @@ run_info() {
 	info --label role=run --label "code=${code_id[test]}" --label "ref=${code_ref[test]}" --label "commit=${commit[test/moonshine]}" \
 		"${extra[@]}" --label "route=$route" --label "resolution=${mw}x${mh}" --label "fps=$mfps" \
 		--label "bitrate=$(awk -v k="$mkbps" 'BEGIN {printf "%g Mb/s", k / 1000}')" --label "seconds=$seconds s" \
+		--label "harness_version=$harness_version" --label "client_version=$(client_version_used)" \
+		--label "otel_version=$otel_version" \
 		${max_packet_size:+--label "max_packet_size=$max_packet_size B"} \
 		${config_test[0]:+--label "config=${config_test[*]}"} ${config_base[0]:+--label "baseline_config=${config_base[*]}"}
+	write_versions
 }
 
 # traced stream ARGS...: a stream whose frames the client adds to their traces. A fresh key goes to Moonshine's side
@@ -1270,8 +1296,7 @@ stream_row() {
 		+ "\(.frames) frames at \(.fps * 10 | round / 10) fps, \(.missing) missing, \(.idr) keyframes"
 		+ (if .dropped_frames + .dropped_packets + .rfi_requests > 0 then ", \(.rfi_requests) RFI requests, \(.recovery_frames) recovery frames" else "" end)
 		+ (if .decode_errors + .corrupt > 0 then ", \(.decode_errors) decode errors, \(.corrupt) corrupt" else "" end)
-		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"
-		+ (if .display_hz != null then "; on a \(.display_hz) Hz display: \(.display_judder) judder, \(.display_dropped) dropped, \(.display_latency_ms_p50 * 10 | round / 10) ms to screen (paced: \(.paced_judder) judder, \(.paced_dropped) dropped, \(.paced_latency_ms_p50 * 10 | round / 10) ms)" else "" end)' "$2")
+		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"' "$2")
 	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
 		if .decode_errors + .corrupt > 0 then "pictures that didn'"'"'t decode" else empty end,
 		if .stalled_ms >= .seconds * 500 then "frozen half the stream or more" else empty end] | join(", ")' "$2")

@@ -23,7 +23,7 @@ jobs:
 
       - name: Build
         run: |
-          podman build -t ghcr.io/${{ github.repository }}:latest .
+          podman build --build-arg MTH_COMMIT=${GITHUB_SHA::7} -t ghcr.io/${{ github.repository }}:latest .
           podman build -f view/Containerfile -t ghcr.io/${{ github.repository }}:view .
 
       - name: Push

@@ -1100,6 +1100,234 @@
     },
     {
       "type": "stat",
+      "title": "Decoded to on screen",
+      "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "no display model",
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "no display model",
+                  "color": "#5a5f66",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "orientation": "auto"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 6
+    },
+    {
+      "type": "stat",
+      "title": "Dropped by the display",
+      "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+          "legendFormat": "",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "no display model",
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "no display model",
+                  "color": "#5a5f66",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "orientation": "auto"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "id": 7
+    },
+    {
+      "type": "stat",
+      "title": "Judder",
+      "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+          "legendFormat": "",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "no display model",
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "no display model",
+                  "color": "#5a5f66",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "orientation": "auto"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "id": 8
+    },
+    {
+      "type": "stat",
       "title": "Host latency p99",
       "description": "The 99th percentile of Moonshine's time on the host from capturing a frame to sending its last packet, on every stream but the packet-loss ones (their extra keyframes).\n\nGreen \u2264 3 ms, yellow \u2264 8 ms, red beyond. The thresholds are in targets.json.",
       "datasource": {
@@ -1175,12 +1403,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 16,
-        "y": 1,
+        "x": 4,
+        "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 6
+      "id": 9
     },
     {
       "type": "stat",
@@ -1259,12 +1487,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 20,
-        "y": 1,
+        "x": 8,
+        "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 7
+      "id": 10
     },
     {
       "type": "stat",
@@ -1343,12 +1571,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 0,
+        "x": 12,
         "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 8
+      "id": 11
     },
     {
       "type": "stat",
@@ -1427,12 +1655,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 4,
+        "x": 16,
         "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 9
+      "id": 12
     },
     {
       "type": "stat",
@@ -1511,12 +1739,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 8,
+        "x": 20,
         "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 10
+      "id": 13
     },
     {
       "type": "stat",
@@ -1595,12 +1823,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 12,
-        "y": 5,
+        "x": 0,
+        "y": 9,
         "w": 4,
         "h": 4
       },
-      "id": 11
+      "id": 14
     },
     {
       "type": "stat",
@@ -1679,12 +1907,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 16,
-        "y": 5,
+        "x": 4,
+        "y": 9,
         "w": 4,
         "h": 4
       },
-      "id": 12
+      "id": 15
     },
     {
       "type": "row",
@@ -1693,11 +1921,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 13,
         "w": 24,
         "h": 1
       },
-      "id": 13
+      "id": 16
     },
     {
       "type": "table",
@@ -1757,7 +1985,10 @@
               "bitrate": "Bitrate",
               "seconds": "Stream length",
               "chaos": "Chaos",
-              "tier": "Battery"
+              "tier": "Battery",
+              "harness_version": "moonshine-test-headless",
+              "client_version": "gamestream-test-client",
+              "otel_version": "moonshine-otel"
             },
             "indexByName": {
               "Value": 0,
@@ -1781,7 +2012,10 @@
               "bitrate": 17,
               "seconds": 18,
               "chaos": 19,
-              "tier": 20
+              "tier": 20,
+              "harness_version": 21,
+              "client_version": 22,
+              "otel_version": 23
             }
           }
         },
@@ -1835,11 +2069,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 14,
         "w": 8,
         "h": 13
       },
-      "id": 14
+      "id": 17
     },
     {
       "type": "table",
@@ -1899,7 +2133,10 @@
               "bitrate": "Bitrate",
               "seconds": "Stream length",
               "chaos": "Chaos",
-              "tier": "Battery"
+              "tier": "Battery",
+              "harness_version": "moonshine-test-headless",
+              "client_version": "gamestream-test-client",
+              "otel_version": "moonshine-otel"
             },
             "indexByName": {
               "Value": 0,
@@ -1923,7 +2160,10 @@
               "bitrate": 17,
               "seconds": 18,
               "chaos": 19,
-              "tier": 20
+              "tier": 20,
+              "harness_version": 21,
+              "client_version": 22,
+              "otel_version": 23
             }
           }
         },
@@ -1977,11 +2217,11 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 10,
+        "y": 14,
         "w": 8,
         "h": 13
       },
-      "id": 15
+      "id": 18
     },
     {
       "type": "table",
@@ -2078,6 +2318,9 @@
               "seconds": "Stream length",
               "chaos": "Chaos",
               "tier": "Battery",
+              "harness_version": "moonshine-test-headless",
+              "client_version": "gamestream-test-client",
+              "otel_version": "moonshine-otel",
               "Value #B": "Streams",
               "Value #C": "Frames decoded",
               "Value #D": "Clock sync (ms)"
@@ -2105,9 +2348,12 @@
               "seconds": 18,
               "chaos": 19,
               "tier": 20,
-              "Value #B": 21,
-              "Value #C": 22,
-              "Value #D": 23
+              "harness_version": 21,
+              "client_version": 22,
+              "otel_version": 23,
+              "Value #B": 24,
+              "Value #C": 25,
+              "Value #D": 26
             }
           }
         },
@@ -2161,11 +2407,11 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 10,
+        "y": 14,
         "w": 8,
         "h": 13
       },
-      "id": 16
+      "id": 19
     },
     {
       "type": "row",
@@ -2250,11 +2496,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 24,
+            "y": 28,
             "w": 4,
             "h": 4
           },
-          "id": 18
+          "id": 21
         },
         {
           "type": "stat",
@@ -2334,11 +2580,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 24,
+            "y": 28,
             "w": 4,
             "h": 4
           },
-          "id": 19
+          "id": 22
         },
         {
           "type": "stat",
@@ -2418,11 +2664,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 24,
+            "y": 28,
             "w": 4,
             "h": 4
           },
-          "id": 20
+          "id": 23
         },
         {
           "type": "stat",
@@ -2502,11 +2748,239 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 24,
+            "y": 28,
             "w": 4,
             "h": 4
           },
-          "id": 21
+          "id": 24
+        },
+        {
+          "type": "stat",
+          "title": "Decoded to on screen",
+          "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value",
+            "wideLayout": true,
+            "orientation": "auto"
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 28,
+            "w": 4,
+            "h": 4
+          },
+          "id": 25
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by the display",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value",
+            "wideLayout": true,
+            "orientation": "auto"
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 28,
+            "w": 4,
+            "h": 4
+          },
+          "id": 26
+        },
+        {
+          "type": "stat",
+          "title": "Judder",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value",
+            "wideLayout": true,
+            "orientation": "auto"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 32,
+            "w": 4,
+            "h": 4
+          },
+          "id": 27
         },
         {
           "type": "stat",
@@ -2585,12 +3059,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 16,
-            "y": 24,
+            "x": 4,
+            "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 22
+          "id": 28
         },
         {
           "type": "stat",
@@ -2669,12 +3143,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 20,
-            "y": 24,
+            "x": 8,
+            "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 23
+          "id": 29
         },
         {
           "type": "stat",
@@ -2753,12 +3227,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 0,
-            "y": 28,
+            "x": 12,
+            "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 24
+          "id": 30
         },
         {
           "type": "stat",
@@ -2837,12 +3311,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 4,
-            "y": 28,
+            "x": 16,
+            "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 25
+          "id": 31
         },
         {
           "type": "stat",
@@ -2921,12 +3395,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 8,
-            "y": 28,
+            "x": 20,
+            "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 26
+          "id": 32
         },
         {
           "type": "stat",
@@ -3005,12 +3479,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 12,
-            "y": 28,
+            "x": 0,
+            "y": 36,
             "w": 4,
             "h": 4
           },
-          "id": 27
+          "id": 33
         },
         {
           "type": "stat",
@@ -3089,21 +3563,21 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 16,
-            "y": 28,
+            "x": 4,
+            "y": 36,
             "w": 4,
             "h": 4
           },
-          "id": 28
+          "id": 34
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 27,
         "w": 24,
         "h": 1
       },
-      "id": 17
+      "id": 20
     },
     {
       "type": "row",
@@ -3168,7 +3642,10 @@
                   "bitrate": "Bitrate",
                   "seconds": "Stream length",
                   "chaos": "Chaos",
-                  "tier": "Battery"
+                  "tier": "Battery",
+                  "harness_version": "moonshine-test-headless",
+                  "client_version": "gamestream-test-client",
+                  "otel_version": "moonshine-otel"
                 },
                 "indexByName": {
                   "Value": 0,
@@ -3192,7 +3669,10 @@
                   "bitrate": 17,
                   "seconds": 18,
                   "chaos": 19,
-                  "tier": 20
+                  "tier": 20,
+                  "harness_version": 21,
+                  "client_version": 22,
+                  "otel_version": 23
                 }
               }
             },
@@ -3246,11 +3726,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 33,
+            "y": 41,
             "w": 8,
             "h": 13
           },
-          "id": 30
+          "id": 36
         },
         {
           "type": "table",
@@ -3310,7 +3790,10 @@
                   "bitrate": "Bitrate",
                   "seconds": "Stream length",
                   "chaos": "Chaos",
-                  "tier": "Battery"
+                  "tier": "Battery",
+                  "harness_version": "moonshine-test-headless",
+                  "client_version": "gamestream-test-client",
+                  "otel_version": "moonshine-otel"
                 },
                 "indexByName": {
                   "Value": 0,
@@ -3334,7 +3817,10 @@
                   "bitrate": 17,
                   "seconds": 18,
                   "chaos": 19,
-                  "tier": 20
+                  "tier": 20,
+                  "harness_version": 21,
+                  "client_version": 22,
+                  "otel_version": 23
                 }
               }
             },
@@ -3388,11 +3874,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 33,
+            "y": 41,
             "w": 8,
             "h": 13
           },
-          "id": 31
+          "id": 37
         },
         {
           "type": "table",
@@ -3489,6 +3975,9 @@
                   "seconds": "Stream length",
                   "chaos": "Chaos",
                   "tier": "Battery",
+                  "harness_version": "moonshine-test-headless",
+                  "client_version": "gamestream-test-client",
+                  "otel_version": "moonshine-otel",
                   "Value #B": "Streams",
                   "Value #C": "Frames decoded",
                   "Value #D": "Clock sync (ms)"
@@ -3516,9 +4005,12 @@
                   "seconds": 18,
                   "chaos": 19,
                   "tier": 20,
-                  "Value #B": 21,
-                  "Value #C": 22,
-                  "Value #D": 23
+                  "harness_version": 21,
+                  "client_version": 22,
+                  "otel_version": 23,
+                  "Value #B": 24,
+                  "Value #C": 25,
+                  "Value #D": 26
                 }
               }
             },
@@ -3572,20 +4064,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 33,
+            "y": 41,
             "w": 8,
             "h": 13
           },
-          "id": 32
+          "id": 38
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 40,
         "w": 24,
         "h": 1
       },
-      "id": 29
+      "id": 35
     },
     {
       "type": "row",
@@ -3686,11 +4178,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 47,
+            "y": 55,
             "w": 4,
             "h": 5
           },
-          "id": 34
+          "id": 40
         },
         {
           "type": "stat",
@@ -3786,11 +4278,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 47,
+            "y": 55,
             "w": 4,
             "h": 5
           },
-          "id": 35
+          "id": 41
         },
         {
           "type": "stat",
@@ -3886,11 +4378,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 47,
+            "y": 55,
             "w": 4,
             "h": 5
           },
-          "id": 36
+          "id": 42
         },
         {
           "type": "stat",
@@ -3986,11 +4478,287 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 47,
+            "y": 55,
             "w": 4,
             "h": 5
           },
-          "id": 37
+          "id": 43
+        },
+        {
+          "type": "stat",
+          "title": "Decoded to on screen",
+          "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 55,
+            "w": 4,
+            "h": 5
+          },
+          "id": 44
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by the display",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 55,
+            "w": 4,
+            "h": 5
+          },
+          "id": 45
+        },
+        {
+          "type": "stat",
+          "title": "Judder",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 60,
+            "w": 4,
+            "h": 5
+          },
+          "id": 46
         },
         {
           "type": "stat",
@@ -4085,12 +4853,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 47,
+            "x": 4,
+            "y": 60,
             "w": 4,
             "h": 5
           },
-          "id": 38
+          "id": 47
         },
         {
           "type": "stat",
@@ -4185,12 +4953,12 @@
             }
           },
           "gridPos": {
-            "x": 20,
-            "y": 47,
+            "x": 8,
+            "y": 60,
             "w": 4,
             "h": 5
           },
-          "id": 39
+          "id": 48
         },
         {
           "type": "stat",
@@ -4285,12 +5053,12 @@
             }
           },
           "gridPos": {
-            "x": 0,
-            "y": 52,
-            "w": 12,
+            "x": 12,
+            "y": 60,
+            "w": 4,
             "h": 5
           },
-          "id": 40
+          "id": 49
         },
         {
           "type": "stat",
@@ -4385,12 +5153,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 52,
-            "w": 12,
+            "x": 16,
+            "y": 60,
+            "w": 4,
             "h": 5
           },
-          "id": 41
+          "id": 50
         },
         {
           "type": "barchart",
@@ -4564,11 +5332,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 57,
+            "y": 65,
             "w": 8,
             "h": 8
           },
-          "id": 42
+          "id": 51
         },
         {
           "type": "trend",
@@ -4704,11 +5472,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 57,
+            "y": 65,
             "w": 8,
             "h": 8
           },
-          "id": 43
+          "id": 52
         },
         {
           "type": "barchart",
@@ -4831,11 +5599,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 57,
+            "y": 65,
             "w": 8,
             "h": 8
           },
-          "id": 44
+          "id": 53
         },
         {
           "type": "barchart",
@@ -5036,11 +5804,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 65,
+            "y": 73,
             "w": 8,
             "h": 8
           },
-          "id": 45
+          "id": 54
         },
         {
           "type": "barchart",
@@ -5210,11 +5978,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 65,
+            "y": 73,
             "w": 8,
             "h": 8
           },
-          "id": 46
+          "id": 55
         },
         {
           "type": "trend",
@@ -5391,20 +6159,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 65,
+            "y": 73,
             "w": 8,
             "h": 8
           },
-          "id": 47
+          "id": 56
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 46,
+        "y": 54,
         "w": 24,
         "h": 1
       },
-      "id": 33
+      "id": 39
     },
     {
       "type": "row",
@@ -5505,11 +6273,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 74,
+            "y": 82,
             "w": 4,
             "h": 5
           },
-          "id": 49
+          "id": 58
         },
         {
           "type": "stat",
@@ -5605,11 +6373,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 74,
+            "y": 82,
             "w": 4,
             "h": 5
           },
-          "id": 50
+          "id": 59
         },
         {
           "type": "stat",
@@ -5705,11 +6473,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 74,
+            "y": 82,
             "w": 4,
             "h": 5
           },
-          "id": 51
+          "id": 60
         },
         {
           "type": "stat",
@@ -5805,11 +6573,287 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 74,
+            "y": 82,
             "w": 4,
             "h": 5
           },
-          "id": 52
+          "id": 61
+        },
+        {
+          "type": "stat",
+          "title": "Decoded to on screen",
+          "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 82,
+            "w": 4,
+            "h": 5
+          },
+          "id": 62
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by the display",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 82,
+            "w": 4,
+            "h": 5
+          },
+          "id": 63
+        },
+        {
+          "type": "stat",
+          "title": "Judder",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 87,
+            "w": 4,
+            "h": 5
+          },
+          "id": 64
         },
         {
           "type": "stat",
@@ -5904,12 +6948,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 74,
+            "x": 4,
+            "y": 87,
             "w": 4,
             "h": 5
           },
-          "id": 53
+          "id": 65
         },
         {
           "type": "stat",
@@ -6004,12 +7048,12 @@
             }
           },
           "gridPos": {
-            "x": 20,
-            "y": 74,
+            "x": 8,
+            "y": 87,
             "w": 4,
             "h": 5
           },
-          "id": 54
+          "id": 66
         },
         {
           "type": "stat",
@@ -6104,12 +7148,12 @@
             }
           },
           "gridPos": {
-            "x": 0,
-            "y": 79,
-            "w": 12,
+            "x": 12,
+            "y": 87,
+            "w": 4,
             "h": 5
           },
-          "id": 55
+          "id": 67
         },
         {
           "type": "stat",
@@ -6204,12 +7248,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 79,
-            "w": 12,
+            "x": 16,
+            "y": 87,
+            "w": 4,
             "h": 5
           },
-          "id": 56
+          "id": 68
         },
         {
           "type": "barchart",
@@ -6383,11 +7427,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 84,
+            "y": 92,
             "w": 8,
             "h": 8
           },
-          "id": 57
+          "id": 69
         },
         {
           "type": "trend",
@@ -6523,11 +7567,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 84,
+            "y": 92,
             "w": 8,
             "h": 8
           },
-          "id": 58
+          "id": 70
         },
         {
           "type": "barchart",
@@ -6650,11 +7694,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 84,
+            "y": 92,
             "w": 8,
             "h": 8
           },
-          "id": 59
+          "id": 71
         },
         {
           "type": "barchart",
@@ -6855,11 +7899,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 92,
+            "y": 100,
             "w": 8,
             "h": 8
           },
-          "id": 60
+          "id": 72
         },
         {
           "type": "barchart",
@@ -7029,11 +8073,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 92,
+            "y": 100,
             "w": 8,
             "h": 8
           },
-          "id": 61
+          "id": 73
         },
         {
           "type": "trend",
@@ -7210,20 +8254,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 92,
+            "y": 100,
             "w": 8,
             "h": 8
           },
-          "id": 62
+          "id": 74
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 81,
         "w": 24,
         "h": 1
       },
-      "id": 48
+      "id": 57
     },
     {
       "type": "row",
@@ -7324,11 +8368,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 101,
+            "y": 109,
             "w": 4,
             "h": 5
           },
-          "id": 64
+          "id": 76
         },
         {
           "type": "stat",
@@ -7424,11 +8468,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 101,
+            "y": 109,
             "w": 4,
             "h": 5
           },
-          "id": 65
+          "id": 77
         },
         {
           "type": "stat",
@@ -7524,11 +8568,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 101,
+            "y": 109,
             "w": 4,
             "h": 5
           },
-          "id": 66
+          "id": 78
         },
         {
           "type": "stat",
@@ -7624,11 +8668,287 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 101,
+            "y": 109,
             "w": 4,
             "h": 5
           },
-          "id": 67
+          "id": 79
+        },
+        {
+          "type": "stat",
+          "title": "Decoded to on screen",
+          "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 109,
+            "w": 4,
+            "h": 5
+          },
+          "id": 80
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by the display",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 109,
+            "w": 4,
+            "h": 5
+          },
+          "id": 81
+        },
+        {
+          "type": "stat",
+          "title": "Judder",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 114,
+            "w": 4,
+            "h": 5
+          },
+          "id": 82
         },
         {
           "type": "stat",
@@ -7723,12 +9043,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 101,
+            "x": 4,
+            "y": 114,
             "w": 4,
             "h": 5
           },
-          "id": 68
+          "id": 83
         },
         {
           "type": "stat",
@@ -7823,12 +9143,12 @@
             }
           },
           "gridPos": {
-            "x": 20,
-            "y": 101,
+            "x": 8,
+            "y": 114,
             "w": 4,
             "h": 5
           },
-          "id": 69
+          "id": 84
         },
         {
           "type": "stat",
@@ -7923,12 +9243,12 @@
             }
           },
           "gridPos": {
-            "x": 0,
-            "y": 106,
-            "w": 12,
+            "x": 12,
+            "y": 114,
+            "w": 4,
             "h": 5
           },
-          "id": 70
+          "id": 85
         },
         {
           "type": "stat",
@@ -8023,12 +9343,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 106,
-            "w": 12,
+            "x": 16,
+            "y": 114,
+            "w": 4,
             "h": 5
           },
-          "id": 71
+          "id": 86
         },
         {
           "type": "barchart",
@@ -8202,11 +9522,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 111,
+            "y": 119,
             "w": 8,
             "h": 8
           },
-          "id": 72
+          "id": 87
         },
         {
           "type": "trend",
@@ -8342,11 +9662,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 111,
+            "y": 119,
             "w": 8,
             "h": 8
           },
-          "id": 73
+          "id": 88
         },
         {
           "type": "barchart",
@@ -8469,11 +9789,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 111,
+            "y": 119,
             "w": 8,
             "h": 8
           },
-          "id": 74
+          "id": 89
         },
         {
           "type": "barchart",
@@ -8674,11 +9994,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 119,
+            "y": 127,
             "w": 8,
             "h": 8
           },
-          "id": 75
+          "id": 90
         },
         {
           "type": "barchart",
@@ -8848,11 +10168,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 119,
+            "y": 127,
             "w": 8,
             "h": 8
           },
-          "id": 76
+          "id": 91
         },
         {
           "type": "trend",
@@ -9029,20 +10349,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 119,
+            "y": 127,
             "w": 8,
             "h": 8
           },
-          "id": 77
+          "id": 92
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 100,
+        "y": 108,
         "w": 24,
         "h": 1
       },
-      "id": 63
+      "id": 75
     },
     {
       "type": "row",
@@ -9143,11 +10463,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 128,
+            "y": 136,
             "w": 4,
             "h": 5
           },
-          "id": 79
+          "id": 94
         },
         {
           "type": "stat",
@@ -9243,11 +10563,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 128,
+            "y": 136,
             "w": 4,
             "h": 5
           },
-          "id": 80
+          "id": 95
         },
         {
           "type": "stat",
@@ -9343,11 +10663,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 128,
+            "y": 136,
             "w": 4,
             "h": 5
           },
-          "id": 81
+          "id": 96
         },
         {
           "type": "stat",
@@ -9443,11 +10763,287 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 128,
+            "y": 136,
             "w": 4,
             "h": 5
           },
-          "id": 82
+          "id": 97
+        },
+        {
+          "type": "stat",
+          "title": "Decoded to on screen",
+          "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 136,
+            "w": 4,
+            "h": 5
+          },
+          "id": 98
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by the display",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 136,
+            "w": 4,
+            "h": 5
+          },
+          "id": 99
+        },
+        {
+          "type": "stat",
+          "title": "Judder",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 141,
+            "w": 4,
+            "h": 5
+          },
+          "id": 100
         },
         {
           "type": "stat",
@@ -9542,12 +11138,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 128,
+            "x": 4,
+            "y": 141,
             "w": 4,
             "h": 5
           },
-          "id": 83
+          "id": 101
         },
         {
           "type": "stat",
@@ -9642,12 +11238,12 @@
             }
           },
           "gridPos": {
-            "x": 20,
-            "y": 128,
+            "x": 8,
+            "y": 141,
             "w": 4,
             "h": 5
           },
-          "id": 84
+          "id": 102
         },
         {
           "type": "stat",
@@ -9742,12 +11338,12 @@
             }
           },
           "gridPos": {
-            "x": 0,
-            "y": 133,
-            "w": 12,
+            "x": 12,
+            "y": 141,
+            "w": 4,
             "h": 5
           },
-          "id": 85
+          "id": 103
         },
         {
           "type": "stat",
@@ -9842,12 +11438,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 133,
-            "w": 12,
+            "x": 16,
+            "y": 141,
+            "w": 4,
             "h": 5
           },
-          "id": 86
+          "id": 104
         },
         {
           "type": "barchart",
@@ -10021,11 +11617,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 138,
+            "y": 146,
             "w": 8,
             "h": 8
           },
-          "id": 87
+          "id": 105
         },
         {
           "type": "trend",
@@ -10161,11 +11757,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 138,
+            "y": 146,
             "w": 8,
             "h": 8
           },
-          "id": 88
+          "id": 106
         },
         {
           "type": "barchart",
@@ -10288,11 +11884,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 138,
+            "y": 146,
             "w": 8,
             "h": 8
           },
-          "id": 89
+          "id": 107
         },
         {
           "type": "barchart",
@@ -10493,11 +12089,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 146,
+            "y": 154,
             "w": 8,
             "h": 8
           },
-          "id": 90
+          "id": 108
         },
         {
           "type": "barchart",
@@ -10667,11 +12263,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 146,
+            "y": 154,
             "w": 8,
             "h": 8
           },
-          "id": 91
+          "id": 109
         },
         {
           "type": "trend",
@@ -10848,20 +12444,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 146,
+            "y": 154,
             "w": 8,
             "h": 8
           },
-          "id": 92
+          "id": 110
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 127,
+        "y": 135,
         "w": 24,
         "h": 1
       },
-      "id": 78
+      "id": 93
     },
     {
       "type": "row",
@@ -10962,11 +12558,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 155,
+            "y": 163,
             "w": 4,
             "h": 5
           },
-          "id": 94
+          "id": 112
         },
         {
           "type": "stat",
@@ -11062,11 +12658,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 155,
+            "y": 163,
             "w": 4,
             "h": 5
           },
-          "id": 95
+          "id": 113
         },
         {
           "type": "stat",
@@ -11162,11 +12758,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 155,
+            "y": 163,
             "w": 4,
             "h": 5
           },
-          "id": 96
+          "id": 114
         },
         {
           "type": "stat",
@@ -11262,11 +12858,11 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 155,
+            "y": 163,
             "w": 4,
             "h": 5
           },
-          "id": 97
+          "id": 115
         },
         {
           "type": "stat",
@@ -11362,11 +12958,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 155,
+            "y": 163,
             "w": 4,
             "h": 5
           },
-          "id": 98
+          "id": 116
         },
         {
           "type": "barchart",
@@ -11536,20 +13132,20 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 160,
+            "y": 168,
             "w": 8,
             "h": 8
           },
-          "id": 99
+          "id": 117
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 154,
+        "y": 162,
         "w": 24,
         "h": 1
       },
-      "id": 93
+      "id": 111
     },
     {
       "type": "row",
@@ -11650,11 +13246,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 169,
+            "y": 177,
             "w": 8,
             "h": 5
           },
-          "id": 101
+          "id": 119
         },
         {
           "type": "stat",
@@ -11750,11 +13346,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 169,
+            "y": 177,
             "w": 8,
             "h": 5
           },
-          "id": 102
+          "id": 120
         },
         {
           "type": "stat",
@@ -11850,11 +13446,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 169,
+            "y": 177,
             "w": 8,
             "h": 5
           },
-          "id": 103
+          "id": 121
         },
         {
           "type": "barchart",
@@ -12027,11 +13623,11 @@
           "maxPerRow": 3,
           "gridPos": {
             "x": 0,
-            "y": 174,
+            "y": 182,
             "w": 8,
             "h": 8
           },
-          "id": 104
+          "id": 122
         },
         {
           "type": "barchart",
@@ -12154,20 +13750,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 174,
+            "y": 182,
             "w": 8,
             "h": 8
           },
-          "id": 105
+          "id": 123
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 168,
+        "y": 176,
         "w": 24,
         "h": 1
       },
-      "id": 100
+      "id": 118
     },
     {
       "type": "row",
@@ -12268,11 +13864,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 183,
+            "y": 191,
             "w": 8,
             "h": 5
           },
-          "id": 107
+          "id": 125
         },
         {
           "type": "stat",
@@ -12368,11 +13964,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 183,
+            "y": 191,
             "w": 8,
             "h": 5
           },
-          "id": 108
+          "id": 126
         },
         {
           "type": "stat",
@@ -12468,11 +14064,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 183,
+            "y": 191,
             "w": 8,
             "h": 5
           },
-          "id": 109
+          "id": 127
         },
         {
           "type": "barchart",
@@ -12645,11 +14241,11 @@
           "maxPerRow": 3,
           "gridPos": {
             "x": 0,
-            "y": 188,
+            "y": 196,
             "w": 8,
             "h": 8
           },
-          "id": 110
+          "id": 128
         },
         {
           "type": "barchart",
@@ -12772,20 +14368,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 188,
+            "y": 196,
             "w": 8,
             "h": 8
           },
-          "id": 111
+          "id": 129
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 182,
+        "y": 190,
         "w": 24,
         "h": 1
       },
-      "id": 106
+      "id": 124
     },
     {
       "type": "row",
@@ -12886,11 +14482,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 197,
+            "y": 205,
             "w": 4,
             "h": 5
           },
-          "id": 113
+          "id": 131
         },
         {
           "type": "stat",
@@ -12986,11 +14582,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 197,
+            "y": 205,
             "w": 4,
             "h": 5
           },
-          "id": 114
+          "id": 132
         },
         {
           "type": "stat",
@@ -13086,11 +14682,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 197,
+            "y": 205,
             "w": 4,
             "h": 5
           },
-          "id": 115
+          "id": 133
         },
         {
           "type": "stat",
@@ -13186,11 +14782,11 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 197,
+            "y": 205,
             "w": 4,
             "h": 5
           },
-          "id": 116
+          "id": 134
         },
         {
           "type": "stat",
@@ -13286,11 +14882,287 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 197,
+            "y": 205,
             "w": 4,
             "h": 5
           },
-          "id": 117
+          "id": 135
+        },
+        {
+          "type": "stat",
+          "title": "Decoded to on screen",
+          "description": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range])))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 20,
+            "y": 205,
+            "w": 4,
+            "h": 5
+          },
+          "id": 136
+        },
+        {
+          "type": "stat",
+          "title": "Dropped by the display",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 210,
+            "w": 4,
+            "h": 5
+          },
+          "id": 137
+        },
+        {
+          "type": "stat",
+          "title": "Judder",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(100 * (sum(last_over_time(moonshine_client_display_judder_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no display model",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no display model",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 210,
+            "w": 4,
+            "h": 5
+          },
+          "id": 138
         },
         {
           "type": "stat",
@@ -13385,12 +15257,12 @@
             }
           },
           "gridPos": {
-            "x": 20,
-            "y": 197,
+            "x": 8,
+            "y": 210,
             "w": 4,
             "h": 5
           },
-          "id": 118
+          "id": 139
         },
         {
           "type": "stat",
@@ -13485,12 +15357,12 @@
             }
           },
           "gridPos": {
-            "x": 0,
-            "y": 202,
-            "w": 12,
+            "x": 12,
+            "y": 210,
+            "w": 4,
             "h": 5
           },
-          "id": 119
+          "id": 140
         },
         {
           "type": "stat",
@@ -13585,12 +15457,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 202,
-            "w": 12,
+            "x": 16,
+            "y": 210,
+            "w": 4,
             "h": 5
           },
-          "id": 120
+          "id": 141
         },
         {
           "type": "barchart",
@@ -13764,11 +15636,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 207,
+            "y": 215,
             "w": 8,
             "h": 8
           },
-          "id": 121
+          "id": 142
         },
         {
           "type": "trend",
@@ -13904,11 +15776,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 207,
+            "y": 215,
             "w": 8,
             "h": 8
           },
-          "id": 122
+          "id": 143
         },
         {
           "type": "barchart",
@@ -14031,11 +15903,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 207,
+            "y": 215,
             "w": 8,
             "h": 8
           },
-          "id": 123
+          "id": 144
         },
         {
           "type": "barchart",
@@ -14236,11 +16108,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 215,
+            "y": 223,
             "w": 8,
             "h": 8
           },
-          "id": 124
+          "id": 145
         },
         {
           "type": "barchart",
@@ -14410,20 +16282,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 215,
+            "y": 223,
             "w": 8,
             "h": 8
           },
-          "id": 125
+          "id": 146
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 196,
+        "y": 204,
         "w": 24,
         "h": 1
       },
-      "id": 112
+      "id": 130
     },
     {
       "type": "row",
@@ -14432,11 +16304,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 223,
+        "y": 231,
         "w": 24,
         "h": 1
       },
-      "id": 126
+      "id": 147
     },
     {
       "type": "stat",
@@ -14490,11 +16362,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 224,
+        "y": 232,
         "w": 8,
         "h": 4
       },
-      "id": 127
+      "id": 148
     },
     {
       "type": "stat",
@@ -14548,11 +16420,11 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 224,
+        "y": 232,
         "w": 8,
         "h": 4
       },
-      "id": 128
+      "id": 149
     },
     {
       "type": "stat",
@@ -14606,11 +16478,11 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 224,
+        "y": 232,
         "w": 8,
         "h": 4
       },
-      "id": 129
+      "id": 150
     },
     {
       "type": "row",
@@ -14619,11 +16491,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 228,
+        "y": 236,
         "w": 24,
         "h": 1
       },
-      "id": 130
+      "id": 151
     },
     {
       "type": "table",
@@ -14656,11 +16528,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 229,
+        "y": 237,
         "w": 12,
         "h": 12
       },
-      "id": 131
+      "id": 152
     },
     {
       "type": "table",
@@ -14699,11 +16571,11 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 229,
+        "y": 237,
         "w": 12,
         "h": 12
       },
-      "id": 132
+      "id": 153
     },
     {
       "type": "table",
@@ -14742,11 +16614,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 241,
+        "y": 249,
         "w": 24,
         "h": 12
       },
-      "id": 133
+      "id": 154
     }
   ],
   "links": [

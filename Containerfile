@@ -33,7 +33,8 @@ ARG GAMESTREAM_TEST_CLIENT_COMMIT
 RUN git clone --quiet https://github.com/porkloin/gamestream-test-client /tmp/gtc \
     && git -C /tmp/gtc -c advice.detachedHead=false checkout --quiet "$GAMESTREAM_TEST_CLIENT_COMMIT" \
     && git -C /tmp/gtc submodule update --quiet --init --recursive --depth 1 \
-    && cmake -S /tmp/gtc/client -B /tmp/gtc-build -DCMAKE_BUILD_TYPE=RelWithDebInfo > /dev/null \
+    && cmake -S /tmp/gtc/client -B /tmp/gtc-build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DGTC_COMMIT="$GAMESTREAM_TEST_CLIENT_COMMIT" > /dev/null \
     && cmake --build /tmp/gtc-build -j"$(nproc)" > /dev/null \
     && install -m755 /tmp/gtc-build/gamestream-test-client /usr/local/bin/ \
     && rm -rf /tmp/gtc /tmp/gtc-build \
@@ -43,6 +44,11 @@ COPY battery.json targets.json grafana/test-runs-queries.json /usr/share/moonshi
 # The client's image of the same commit, for --client runs on another machine.
 RUN echo "ghcr.io/porkloin/gamestream-test-client:sha-$GAMESTREAM_TEST_CLIENT_COMMIT" \
       > /usr/share/moonshine-test-headless/client-image
+# The tools' versions, which every run records (CI passes this repository's commit).
+ARG MTH_COMMIT=dev
+ARG MOONSHINE_OTEL_VERSION
+RUN jq -n --arg h "$MTH_COMMIT" --arg c "$GAMESTREAM_TEST_CLIENT_COMMIT" --arg o "$MOONSHINE_OTEL_VERSION" \
+      '{harness: $h, client: $c, otel: $o}' > /usr/share/moonshine-test-headless/versions.json
 # hdrneon (the hdrneon and hdrneon-cycle workloads), from its latest release, checked against its published checksums.
 RUN cd /tmp && name=hdrneon-linux-x86_64 \
     && curl -fsSLO "https://github.com/porkloin/hdrneon/releases/latest/download/$name.tar.gz" \

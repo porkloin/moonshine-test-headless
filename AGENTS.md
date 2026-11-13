@@ -8,7 +8,8 @@ podman flags, and how the repository is laid out. README.md is the short version
 - `moonshine-test-headless`: the entrypoint, one bash script. `--help` prints its header.
 - `battery.json`: the workloads, the measurements each is graded on, and the tiers (see Workloads).
 - `targets.json`: each report card metric's target and acceptable value, its unit and which way is better, what it
-  measures and the basis for its numbers. The default for `--targets`.
+  measures and the basis for its numbers. The default for `--targets`. A null target is a metric shown but not judged
+  (the display rows, until repeat runs measure how much they vary), in a neutral color on the board.
 - `grafana/generate.py`: writes the test runs board (`grafana/test-runs.json`) and its report card's queries for
   `moonshine-otel summary` (`grafana/test-runs-queries.json`), from `battery.json` and `targets.json`, with
   moonshine-otel's panel helpers (`observability/grafana/generate.py` of the release the Containerfile pins, cloned
@@ -23,6 +24,11 @@ podman flags, and how the repository is laid out. README.md is the short version
     Moonshine's statistics socket, records every frame host to client as telemetry, compares recordings, and writes
     `summary.md` from a run's telemetry. Cloned into the image and built at run time; `view/Containerfile` pins the
     same release.
+
+  The image records both pins and its own commit (`MTH_COMMIT`, which CI passes) in
+  `/usr/share/moonshine-test-headless/versions.json`; every run puts them on its `role=run` facts (`harness_version`,
+  `client_version`, `otel_version`, or the image `--client-image` named) and in its own `versions.json`, and
+  `summary.md` names them and warns when two runs set side by side differ.
 
   Bump a pin only to a commit or tag on the tool's main branch, so a squash merge can't leave it pointing at nothing.
   To try an unmerged client, build with `--build-arg GAMESTREAM_TEST_CLIENT_COMMIT=...` and pass the matching image
@@ -224,7 +230,7 @@ In order; a failed build stops the run.
 | HDR | with an HDR workload and no statistics socket: skipped, since nothing confirms the streams were HDR |
 | `<workload>: <codec> HDR` failing with "asked for HDR, Moonshine streamed SDR" | an HDR workload with the statistics socket: the stream moonshine-otel recorded wasn't HDR |
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
-| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames. With a client that models a display, they end with what a display at the stream's rate would show through moonlight-qt's V-Sync (judder, dropped, decoded to on screen) and its frame pacer. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
+| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames. What a display would show (the client's model of moonlight-qt's presenting) is on the report card and the board, not here. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
 | `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
 | Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
 | Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict). An ok row counts the report's other verdicts ("no regression; 9 improved, 4 changed") |
@@ -272,6 +278,7 @@ non-zero exit shows as 125.
 | Path | |
 |---|---|
 | `summary.md` | for the pull request: hardware (host and client), the stream, the report card (the test runs board's tiles, from `test-runs-queries.json`), then the checks |
+| `versions.json` | the tools the run was made with (moonshine-test-headless, gamestream-test-client, moonshine-otel) and the commits of the code under test, by side and project |
 | `logs/summary.log` | `moonshine-otel summary` output |
 | `logs/run.log` | the terminal output |
 | `logs/vulkaninfo.txt` | `vulkaninfo --summary` |

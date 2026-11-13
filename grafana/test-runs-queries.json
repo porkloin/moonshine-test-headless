@@ -25,6 +25,24 @@
       "decimals": 1
     },
     {
+      "key": "display_latency_median",
+      "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range])))",
+      "empty": "no display model",
+      "decimals": 2
+    },
+    {
+      "key": "display_dropped",
+      "expr": "100 * (sum(last_over_time(moonshine_client_display_frames_total{{sel}, stream=\"clean\", mode=\"vsync\", shown=\"false\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range]))",
+      "empty": "no display model",
+      "decimals": 2
+    },
+    {
+      "key": "display_judder",
+      "expr": "100 * (sum(last_over_time(moonshine_client_display_judder_total{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_display_frames_total{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range]))) / sum(last_over_time(moonshine_client_display_frames_total{{sel}, stream=\"clean\", mode=\"vsync\", shown=\"true\"}[$__range]))",
+      "empty": "no display model",
+      "decimals": 2
+    },
+    {
       "key": "server_p99_ms",
       "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream!=\"loss\"}[$__range])))))",
       "empty": "not measured",
