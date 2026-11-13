@@ -19,8 +19,9 @@
 #   - Moonshine streams each workload of a battery to a headless Moonlight client (gamestream-test-client) in each
 #     codec the GPU encodes: the streams each workload needs (clean, with packets dropped, or clicking), for the
 #     measurements that apply to it (battery.json says which);
-#   - with --baseline, the workloads that compare builds stream from both, and their timing is compared (that needs
-#     the statistics socket in both).
+#   - with --baseline, the baseline build streams the same battery, so the report card compares the same streams,
+#     and the workloads timed in Moonshine stream from both builds for a speed comparison (that needs the
+#     statistics socket in both).
 #
 # Batteries (--tier): quick (vkcube), standard (vkcube, hdrneon switching SDR/HDR, clickflash; the default) and full
 # (standard plus GravityMark). --app picks workloads instead.
@@ -1225,10 +1226,13 @@ stream_row() {
 # file WORKLOAD: a file-name-safe form of its id.
 file() { echo "${1//[^A-Za-z0-9.-]/_}"; }
 
-# test_streams: start Moonshine under test, then each workload's streams in each codec.
-test_streams() {
-	local w whdr range codec run label name before f args status sj sf json gb
-	start_server test "$mwork/server" || return 1
+# battery_streams SIDE: that side's Moonshine streams the battery: each workload's streams in each codec, decoded, one
+# check row each. The baseline streams exactly what the test build does, so the report card's columns compare the
+# same streams; its logs go to logs/baseline/.
+battery_streams() {
+	local side=$1 w whdr range codec run label name before f args status sj sf json gb sfx="" ldir=$mlogs srv=$mwork/server
+	[ "$side" = test ] || { sfx=", baseline" ldir=$mlogs/baseline srv=$mwork/server-base; }
+	start_server "$side" "$srv" || return 1
 	supported=$(sed -n 's:.*<ServerCodecModeSupport>\([0-9]*\)</ServerCodecModeSupport>.*:\1:p' <<< "$serverinfo")
 	supported=${supported:-0}
 	if [ $stream = 0 ] || [ ${#workloads[@]} -eq 0 ]; then stop_server; return 0; fi
@@ -1238,8 +1242,9 @@ test_streams() {
 		return 1
 	fi
 	client list > /dev/null 2>&1 || pair_client || { stop_server; return 1; }
-	mkdir -p "$mlogs/timing"
+	mkdir -p "$ldir/timing"
 	for w in "${workloads[@]}"; do
+		[ "$side" = test ] || [ "${wl_baseline[$w]}" = 1 ] || continue
 		whdr=${wl_hdr[$w]} range=""
 		[ "$whdr" = 0 ] || range=" HDR"
 		offered_codecs "$whdr"
@@ -1247,17 +1252,19 @@ test_streams() {
 			for run in ${wl_streams[$w]}; do
 				label="$codec$range"
 				case $run in loss) label+=", $(loss_label)" ;; click) label+=", clicks" ;; esac
-				name="${wl_title[$w]}: $label"
+				name="${wl_title[$w]}: $label$sfx"
 				say "$name"
-				before=$(results $mwork/server)
-				f=$mlogs/$(file "$w")-$codec-$run
+				before=$(results "$srv")
+				f=$ldir/$(file "$w")-$codec-$run
 				# --quit ends the session, so the next stream starts a new one in its own codec.
 				args=(stream "$w" --codec "$codec" --quit --json "$f.json" --csv "$f.csv")
 				case $run in
 				clean) args+=(--seconds "$seconds") ;;
 				loss)
 					args+=(--seconds "$seconds")
-					# By default, lose every packet of one frame every two seconds.
+					# By default, lose every packet of one frame every two seconds. The same seed on both builds, so both
+					# see the same losses (first, so a --seed in --chaos still wins).
+					args+=(--seed 1)
 					if [ ${#chaos[@]} -gt 0 ]; then args+=("${chaos[@]}"); else args+=(--loss-frame-every 120); fi
 					;;
 				click) args+=(--seconds "$click_seconds" --click-every "$click_every") ;;
@@ -1269,13 +1276,13 @@ test_streams() {
 				client "${args[@]}" > "$f.log" 2>&1 || status=$?
 				gpu_busy_stop
 				if [ $status != 0 ] || [ ! -s "$f.json" ]; then
-					row "$name" FAIL "the client stopped early; see logs/$(basename "$f").log"
+					row "$name" FAIL "the client stopped early; see ${f#"$mout"/}.log"
 					continue
 				fi
 				if [ $run = click ]; then click_row "$name" "$f.json"; else stream_row "$name" "$f.json" "${wl_warmup[$w]}"; fi
 				sj="" sf=""
-				if [ -n "$watcher" ] && json=$(new_result $mwork/server "$before"); then
-					sj=$mlogs/timing/$(file "$w")-$codec-$run.json sf=${sj%.json}.frames.csv
+				if [ -n "$watcher" ] && json=$(new_result "$srv" "$before"); then
+					sj=$ldir/timing/$(file "$w")-$codec-$run.json sf=${sj%.json}.frames.csv
 					cp "$json" "$sj"
 					cp "${json%.json}.frames.csv" "$sf" 2>/dev/null || sf=""
 					# Moonshine reports the stream it negotiated: an HDR request it answered in SDR is a failure.
@@ -1295,16 +1302,11 @@ test_streams() {
 
 # --- Baseline --------------------------------------------------------------------------------------------------
 
-# The workloads that compare builds: speed streams for those measured in Moonshine (host latency or smoothness),
-# a click-to-flash stream for those that click.
+# The workloads that compare builds: timed streams for those measured in Moonshine (host latency or smoothness). The
+# baseline streams the whole battery too (battery_streams base), for the report card.
 compare_wls=()
 for w in "${workloads[@]}"; do [ "${wl_baseline[$w]}" = 0 ] || compare_wls+=("$w"); done
 timed() { jq -e 'index("server_latency") or index("smoothness")' <<< "${wl_measures[$1]}" > /dev/null; }
-clicks() { [[ " ${wl_streams[$1]} " == *" click "* ]]; }
-lossy() { jq -e 'index("loss_recovery")' <<< "${wl_measures[$1]}" > /dev/null && [[ " ${wl_streams[$1]} " == *" loss "* ]]; }
-
-# loss_args: the client options of the stream with packets dropped, as `loss` holds them.
-loss_args() { if [ ${#chaos[@]} -gt 0 ]; then loss=("${chaos[@]}"); else loss=(--loss-frame-every 120); fi; }
 
 compare=0 speed=1
 if [ $baseline = 1 ] && [ ${#compare_wls[@]} -gt 0 ]; then
@@ -1320,77 +1322,39 @@ if [ $baseline = 1 ] && [ ${#compare_wls[@]} -gt 0 ]; then
 	fi
 fi
 
-# bench_streams SIDE: from that side's build, for each comparing workload and codec: with the speed comparison,
-# $iterations streams with nothing dropped, each recorded by moonshine-otel into $mwork/bench/SIDE/WORKLOAD/CODEC/
-# (each --seconds plus the 2 s moonshine-otel discards as warmup; the client doesn't decode, it only receives); and
-# for workloads that click, a click-to-flash stream; for workloads measuring loss recovery, one stream with the same
-# packets dropped as the test build's loss stream (seed 1 on both builds, so both see the same losses). Only the
-# timed streams repeat: the speed verdict compares their spread; the others feed the report card's baseline column.
+# bench_streams SIDE: from that side's build, for each comparing workload and codec, $iterations streams with nothing
+# dropped, each recorded by moonshine-otel into $mwork/bench/SIDE/WORKLOAD/CODEC/ (each --seconds plus the 2 s
+# moonshine-otel discards as warmup; the client doesn't decode, it only receives), for the speed verdict, which
+# compares their spread. Nothing to do without the speed comparison.
 bench_streams() {
 	local side=$1 w codec i before json args d bdir range what_
+	[ $speed = 1 ] || return 0
 	what_=$(what "$side")
 	start_server "$side" $mwork/bench/$side || return 1
 	client list > /dev/null 2>&1 || pair_client || return 1
 	for w in "${compare_wls[@]}"; do
+		timed "$w" || continue
 		offered_codecs "${wl_hdr[$w]}"
 		range=""
 		[ "${wl_hdr[$w]}" = 0 ] || range=" HDR"
 		for codec in "${offered[@]}"; do
 			d=$mlogs/bench/$side/$(file "$w")/$codec bdir=$mwork/bench/$side/$(file "$w")/$codec
 			mkdir -p "$d" "$bdir"
-			if [ $speed = 1 ] && timed "$w"; then
-				say "Benchmarking $what_: ${wl_title[$w]}, $codec$range"
-				for i in $(seq "$iterations"); do
-					before=$(results $mwork/bench/$side)
-					args=(stream "$w" --codec "$codec" --seconds $((seconds + 2)) --decode none --quit --csv "$d/stream-$i.csv")
-					[ "${wl_hdr[$w]}" = 0 ] || args+=(--hdr)
-					if ! client "${args[@]}" > "$d/stream-$i.log" 2>&1 || ! json=$(new_result $mwork/bench/$side "$before"); then
-						row "Benchmark $what_, ${wl_title[$w]}, $codec" FAIL "see ${d#"$mout"/}/stream-$i.log"
-						rm -rf "$bdir"
-						break
-					fi
-					mv "$json" "$bdir/"
-					cp "$bdir/$(basename "$json")" "$d/"
-					# Its per-frame record; compare reads only the JSON.
-					mv "${json%.json}.frames.csv" "$d/" 2>/dev/null || true
-				done
-			fi
-			if lossy "$w"; then
-				say "Loss recovery $what_: ${wl_title[$w]}, $codec$range"
-				loss_args
-				for i in 1; do
-					before=$(results $mwork/bench/$side)
-					# --seed first, so a --seed in --chaos still wins.
-					args=(stream "$w" --codec "$codec" --seconds "$seconds" --quit --seed "$i" "${loss[@]}"
-						--json "$d/loss-$i.json" --csv "$d/loss-$i.csv")
-					[ "${wl_hdr[$w]}" = 0 ] || args+=(--hdr)
-					if ! client "${args[@]}" > "$d/loss-$i.log" 2>&1; then
-						row "${wl_title[$w]}: $codec$range, loss $i$( [ "$side" = base ] && echo ", baseline")" FAIL \
-							"see ${d#"$mout"/}/loss-$i.log"
-					fi
-					# moonshine-otel recorded it too; it's not part of the speed comparison.
-					if [ -n "$watcher" ] && json=$(new_result $mwork/bench/$side "$before"); then
-						rm -f "$json" "${json%.json}.frames.csv"
-					fi
-				done
-			fi
-			if clicks "$w"; then
-				say "Click-to-flash $what_: ${wl_title[$w]}, $codec$range"
+			say "Benchmarking $what_: ${wl_title[$w]}, $codec$range"
+			for i in $(seq "$iterations"); do
 				before=$(results $mwork/bench/$side)
-				args=(stream "$w" --codec "$codec" --seconds "$click_seconds" --quit --click-every "$click_every"
-					--json "$d/click.json")
+				args=(stream "$w" --codec "$codec" --seconds $((seconds + 2)) --decode none --quit --csv "$d/stream-$i.csv")
 				[ "${wl_hdr[$w]}" = 0 ] || args+=(--hdr)
-				if client "${args[@]}" > "$d/click.log" 2>&1; then
-					[ "$side" != base ] || click_row "${wl_title[$w]}: $codec$range, clicks, baseline" "$d/click.json"
-				else
-					row "${wl_title[$w]}: $codec$range, clicks$( [ "$side" = base ] && echo ", baseline")" FAIL \
-						"see ${d#"$mout"/}/click.log"
+				if ! client "${args[@]}" > "$d/stream-$i.log" 2>&1 || ! json=$(new_result $mwork/bench/$side "$before"); then
+					row "Benchmark $what_, ${wl_title[$w]}, $codec" FAIL "see ${d#"$mout"/}/stream-$i.log"
+					rm -rf "$bdir"
+					break
 				fi
-				# moonshine-otel recorded it too; it's not part of the speed comparison.
-				if [ $speed = 1 ] && json=$(new_result $mwork/bench/$side "$before"); then
-					rm -f "$json" "${json%.json}.frames.csv"
-				fi
-			fi
+				mv "$json" "$bdir/"
+				cp "$bdir/$(basename "$json")" "$d/"
+				# Its per-frame record; compare reads only the JSON.
+				mv "${json%.json}.frames.csv" "$d/" 2>/dev/null || true
+			done
 		done
 	done
 	stop_server
@@ -1430,9 +1394,10 @@ for m in "${modes[@]}"; do
 	mkdir -p "$mlogs" "$mwork"
 	rows=("${shared_rows[@]}") noted=() run_name=""
 	mode_open=1
-	test_streams || true
+	battery_streams test || true
 	if [ $compare = 1 ]; then
 		mkdir -p "$mlogs/bench"
+		battery_streams base || true
 		{ bench_streams test && bench_streams base && compare_builds; } || true
 	fi
 	finish_mode

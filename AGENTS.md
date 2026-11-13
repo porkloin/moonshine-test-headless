@@ -85,9 +85,9 @@ build with "was not used in the crate graph".
 | `--seconds N` | length of each stream, and of each `--baseline` stream after 2 s of warmup (20) |
 | `--codecs LIST` | comma-separated subset of `h264,hevc,av1` (default: all Moonshine offers on the GPU) |
 | `--no-stream` | only the GPU tests |
-| `--baseline` | also build hgaiser's default branches, time the same streams from both builds, compare |
+| `--baseline` | also build hgaiser's default branches; the baseline streams the same battery (the report card's baseline column) and both builds stream timed streams for a speed comparison |
 | `--baseline-PROJECT REF` | baseline for that project (`moonshine`, `pixelforge`, `ferriscope`) instead of hgaiser's default branch (implies `--baseline`) |
-| `--iterations N` | timed streams per codec and build with `--baseline` (5); loss and click streams run once |
+| `--iterations N` | timed streams per codec and build with `--baseline` (5) |
 | `--chaos OPTIONS...` | gamestream-test-client options for each codec's second stream instead of `--loss-frame-every 120`: everything after `--chaos`, so it goes last, e.g. `--chaos --loss-bursty 2:8 --no-rfi`. The row is named after them |
 | `--no-traces` | don't record telemetry (on by default, `--traces` still accepted), so no summary beyond the checks. With it: moonshine-otel's OTLP metrics (exported every second) and traces from the streams in `logs/otlp/`; every frame is a trace with Moonshine's and the client's spans (each stream gets a key for `watch --stream-key-file` and `moonshine-otel client`, which follows the client's `--stats` live, or reads them once fetched back from a remote client, labeling its `moonshine.client.*` metrics with the workload, codec, stream kind, `run` (the code under test as `<asked for>@<commit>`, then the run's start in UTC: `#257@5631ba0 · 11-03 22:13Z`, or `local@5631ba0-dirty · …` for a checkout), `side` (test, or base for the baseline streams), that side's `code` (`#257@5631ba0`), `ref` and `commit`, and the workload's `load`; at the run's first stream, `moonshine-otel info` records the host and the client (the same fields: machine, CPU, memory, the GPU and driver it encoded or decoded on, other GPUs, OS, kernel, network; N/A where the probe had none) and the run (code, baseline, the route and round trip, never an address, and the stream settings) (`logs/info.log`); `logs/client-traces.log`). Workloads with `"log": true` in battery.json (clickflash, hdrneon) also get `--log /work/app-events.jsonl`, emptied before each stream, and `moonshine-otel app` follows it here with the same key and labels (`logs/app-traces.log`). The client times frames on its own machine, so it also gets `--clock`: `gamestream-test-client clock-serve` runs here on base port + 22 (48011, or 58011 remote) and answers NTP with this machine's clock, the one Moonshine stamps frames with; the client measures it before and after each stream and gives its times on it, with the offset, its uncertainty (half the fastest NTP round trip) and the drift during the stream recorded on its spans and as metrics. No machine's clock is set or needs syncing; `logs/clock-serve.log` |
 | `--tier NAME` | the battery's tier: `quick`, `standard` (default when no `--app`) or `full` |
@@ -123,7 +123,7 @@ Moonshine's config gets an app per workload of the run, titled with its id. A wo
 | `streams` | which streams per codec: `clean` (`--seconds`), `loss` (with `--loss-frame-every 120`, or `--chaos`), `click` (at least 60 s, clicking every 300 ms) |
 | `measures` | the measurements that apply to it, which streams it gets and which panels the test runs board gives its section (`grafana/generate.py`): `correctness`, `smoothness`, `server_latency`, `loss_recovery`, `click_latency`, `hdr_transitions`, `load`, `bitrate` |
 | `switch_every_s` | seconds between content switches, for `hdr_transitions` |
-| `baseline` | stream it for the `--baseline` comparison: timed streams when it measures `server_latency` or `smoothness`; loss streams with the same `--chaos` (or frame drop) when it measures `loss_recovery`; a click-to-flash stream when it clicks |
+| `baseline` | stream it for the `--baseline` comparison: its battery streams from the baseline build too, and timed streams from both builds when it measures `server_latency` or `smoothness` |
 
 | Id | Command | Streams | Where it comes from |
 |---|---|---|---|
@@ -165,9 +165,8 @@ In order; a failed build stops the run.
 | `<workload>: <codec> HDR` failing with "asked for HDR, Moonshine streamed SDR" | an HDR workload with the statistics socket: the stream moonshine-otel recorded wasn't HDR |
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
 | `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and stalls covered less than half the stream; "packet loss" drops every packet of one frame every 120 frames (`--loss-frame-every 120`); its notes start with how many frames were dropped on purpose |
-| `<workload>: <codec>, loss 1` (, baseline) | with `--baseline`, per workload measuring loss recovery: one stream per codec from each build with the loss stream's options and `--seed 1` on both, so both see the same losses; a row only when one fails |
-| `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded. With `--baseline`, each build streams one more |
-| Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (click-to-flash streams still run) |
+| `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded |
+| Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
 | Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict) |
 
 The exit code is 0 when the run finished, whatever its checks say, and 2 for usage errors or no GPU. With `--strict`, a failed check makes it 1. Through `runlabel`, a
@@ -191,8 +190,9 @@ non-zero exit shows as 125.
    `/work/<mode>` with more): start the Moonshine under test, then per workload and codec the streams the workload
    asks for, each with `--quit` so the next starts a new session; clean streams sample GPU busy
    (`/sys/class/drm/card*/device/gpu_busy_percent`, the busiest card, or `nvidia-smi`) every 200 ms into
-   `<stream>.gpu.csv`. With `--baseline`, start each build in turn and run the comparing workloads' streams (timed
-   ones recorded by `watch` into `<mwork>/bench/<side>/<workload>/<codec>/`), then compare the two sides' recordings
+   `<stream>.gpu.csv`. With `--baseline`, the baseline Moonshine streams the same battery (rows and logs marked baseline, in
+   `logs/baseline/`), then each build in turn streams the timed workloads (recorded by `watch` into
+   `<mwork>/bench/<side>/<workload>/<codec>/`), then compare the two sides' recordings
    per workload and codec, each comparison a check. Then copy the spool to `logs/otlp/`, and run `moonshine-otel summary logs/otlp --run
    <the mode's run> --notes <the checks as Markdown>` with the image's Prometheus (`/usr/local/bin/prometheus`,
    from prom/prometheus) for `summary.md`. Each mode is a run of its own (` · <mode>` on the run name with more
@@ -219,7 +219,8 @@ non-zero exit shows as 125.
 | `logs/<workload>-<codec>-<clean\|loss\|click>.log`, `.json`, `.csv` | the client's summary, its JSON form, and one row per frame |
 | `logs/<workload>-<codec>-clean.gpu.csv` | GPU busy percent every 200 ms (`ms,busy`), when the GPU reports it |
 | `logs/timing/<workload>-<codec>-<stream>.json`, `.frames.csv` | moonshine-otel's result for that stream (schema in moonshine-otel) and its per-frame stage timings |
-| `logs/bench/<test\|base>/<workload>/<codec>/` | with `--baseline`: per timed stream, moonshine-otel's result and `.frames.csv`, the client's log and `stream-<n>.csv`; `loss-<n>.json`, `.csv`, `.log` for loss streams; `click.json` for click streams |
+| `logs/baseline/` | with `--baseline`: the baseline build's battery streams, named as the test build's are in `logs/` |
+| `logs/bench/<test\|base>/<workload>/<codec>/` | with `--baseline`: per timed stream, moonshine-otel's result and `.frames.csv`, the client's log and `stream-<n>.csv` |
 | `logs/bench/compare-<workload>-<codec>.md` | the comparison |
 | `logs/otlp/` | OTLP batches, the run's telemetry: what `summary.md` is made from (`moonshine-otel summary results.tar.gz` makes it again), what the `:view` image loads (see Exploring a run) |
 | `results.tar.gz` | everything above, the bundle to attach to the pull request |

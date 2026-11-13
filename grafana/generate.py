@@ -87,8 +87,9 @@ def only_if_compared(expr):
 # Each scored metric as PromQL over the client's streams that `sel` picks (Moonshine's are joined to them), in the
 # metric's unit in targets.json: frame intervals multiply seconds by $fps, or by the frame rate Moonshine sent at.
 SCORED = {
-    "bad_pictures": lambda sel: f'sum({whole("moonshine_client_frames_total", sel + ", result!=\"ok\"")}) or vector(0)',
-    "missing_clean": lambda sel: f'sum({whole("moonshine_client_frames_missing_total", sel + CLEAN)}) or vector(0)',
+    # 0 only when there were streams to count in: a side without them is "not measured", not a clean score.
+    "bad_pictures": lambda sel: f'sum({whole("moonshine_client_frames_total", sel + ", result!=\"ok\"")}) or 0 * sum({whole("moonshine_client_frames_total", sel)})',
+    "missing_clean": lambda sel: f'sum({whole("moonshine_client_frames_missing_total", sel + CLEAN)}) or 0 * sum({whole("moonshine_client_frames_total", sel + CLEAN)})',
     # Each stream's p99 in its own frame intervals (Moonshine's sending rate), then the median stream: pooling streams
     # at different rates mixes their intervals, and one stalled stream (lost frames and delivered rate show it) would
     # otherwise outweigh the rest.
