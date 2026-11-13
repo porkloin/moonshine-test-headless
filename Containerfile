@@ -36,7 +36,7 @@ COPY battery.json targets.json grafana/test-runs-queries.json /usr/share/moonshi
 # gamestream-test-client commit's tag).
 ARG CLIENT_IMAGE=ghcr.io/porkloin/gamestream-test-client:latest
 RUN echo "$CLIENT_IMAGE" > /usr/share/moonshine-test-headless/client-image
-# hdrneon, a workload option (--app hdrneon), from its latest release, checked against its published checksums.
+# hdrneon (the hdrneon and hdrneon-cycle workloads), from its latest release, checked against its published checksums.
 RUN cd /tmp && name=hdrneon-linux-x86_64 \
     && curl -fsSLO "https://github.com/porkloin/hdrneon/releases/latest/download/$name.tar.gz" \
     && curl -fsSLO https://github.com/porkloin/hdrneon/releases/latest/download/SHA256SUMS \
@@ -53,7 +53,7 @@ RUN cd /tmp && name=clickflash-linux-x86_64 \
 # Prometheus, for moonshine-otel summary: it loads a run's telemetry into a throwaway one and asks it what the test
 # runs board asks.
 COPY --from=docker.io/prom/prometheus:v3.15.1 /bin/prometheus /usr/local/bin/prometheus
-# Built at run time against the Moonshine under test, to record its timing.
+# Built at run time; it only reads Moonshine's statistics socket, so one build serves every Moonshine.
 COPY third_party/moonshine-otel /usr/share/moonshine-test-headless/moonshine-otel
 RUN systemctl --global enable pipewire.socket pipewire-pulse.socket wireplumber.service
 
@@ -61,7 +61,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 # Intel's Vulkan driver keeps video encode behind this flag.
 ENV ANV_DEBUG=video-encode
 
-# `podman container runlabel run IMAGE REF...` runs this. --systemd=always lets the systemd user manager manage the
+# `podman container runlabel run IMAGE -- --moonshine REF` runs this. --systemd=always lets the systemd user manager manage the
 # container's cgroup; SELinux would otherwise need a host boolean for that, hence label=disable. Moonshine needs
 # kcmp(2), which podman's seccomp profile only allows with SYS_PTRACE (inside the container's user namespace).
 # No process limit: building and linking the tests in parallel goes past podman's default of 2048. The current folder

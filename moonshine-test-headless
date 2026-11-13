@@ -12,13 +12,13 @@
 #   ./pixelforge                          a checkout in the current folder, uncommitted changes included
 #
 # Moonshine is always built: from its REF if given, otherwise hgaiser/moonshine's default branch, with the
-# pixelforge and ferriscope REFs in place of the ones it depends on. moonshine-otel records its timing from its
-# statistics socket, in Moonshine versions that have one. Then:
+# pixelforge and ferriscope REFs in place of the ones it depends on. moonshine-otel records Moonshine's timing from
+# its statistics socket, when that Moonshine has one. Then:
 #
 #   - pixelforge's and ferriscope's GPU tests, for those given a REF;
-#   - Moonshine streams each workload of a battery to a headless Moonlight client (gamestream-test-client) in each
-#     codec the GPU encodes: the streams each workload needs (clean, with packets dropped, or clicking), for the
-#     measurements that apply to it (battery.json says which);
+#   - Moonshine streams each workload to a headless Moonlight client (gamestream-test-client), once per codec
+#     Moonshine offers. battery.json says which streams (clean, packet loss, clicks) and measurements each
+#     workload gets;
 #   - with --baseline, the baseline build streams the same battery, so the report card compares the same streams,
 #     and the workloads timed in Moonshine stream from both builds for a speed comparison (that needs the
 #     statistics socket in both).
@@ -35,13 +35,13 @@
 #                       compare against REF instead of hgaiser's default branch (implies --baseline)
 #   --iterations N      timed streams per codec and build, with --baseline (5)
 #   --no-traces         don't record the streams' telemetry (moonshine-otel's OTLP metrics and traces: a trace
-#                       per frame with Moonshine's and the client's spans), and so make no summary.md
+#                       per frame with Moonshine's and the client's spans), so summary.md has only the checks
 #   --chaos OPTIONS...  gamestream-test-client options for the second stream of each codec, instead of dropping
 #                       one frame in 120; everything after --chaos, so it goes last, e.g.
 #                       --chaos --loss-bursty 2:8 --no-rfi
 #   --tier NAME         the battery of workloads: quick, standard (default) or full
-#   --app NAME          a workload to run instead of a battery (repeatable): vkcube, glxgears, hdrneon,
-#                       hdrneon-cycle, clickflash, clickflash:no-vsync, or gravitymark[:ASTEROIDS] (e.g.
+#   --app NAME          a workload to run instead of a battery (repeatable): vkcube, glxgears, glxgears:no-vsync,
+#                       hdrneon, hdrneon-cycle, clickflash, clickflash:no-vsync, or gravitymark[:ASTEROIDS] (e.g.
 #                       gravitymark:4m; 1m by default), a GPU stress test that's downloaded on first use and
 #                       installed after you accept its license
 #   --app-command CMD   also stream CMD (run by bash) as a workload, measured like vkcube; the current folder
@@ -103,7 +103,7 @@
 # Results go to ./moonshine-test-<time>-<refs>/ in the folder you ran it from (/results here): summary.md (for the pull request: the
 # machines, the stream and the report card, from the telemetry), logs/ (with the telemetry in logs/otlp),
 # and all of it as results.tar.gz, the bundle to attach. With more than one --mode, each
-# mode's summary.md and stream logs are in a folder named for it (1920x1080@60), and the top
+# mode's summary.md and stream logs are in a folder named for it (e.g. 1920x1080@60-20000k), and the top
 # summary.md has every mode's.
 set -euo pipefail
 
@@ -912,7 +912,7 @@ EOF
 	echo "$f"
 }
 
-# moonshine-otel draws the charts, and records the streams from Moonshine's statistics socket when this Moonshine
+# moonshine-otel records the streams from Moonshine's statistics socket when this Moonshine
 # has one. It only reads the socket, so one build serves every Moonshine.
 otel=""
 if [ $serve = 0 ]; then
@@ -921,7 +921,7 @@ if [ $serve = 0 ]; then
 		cargo build --release -p moonshine-otel) > "$logs/moonshine-otel-build.log" 2>&1; then
 		otel=/cache/target/otel-watch/release/moonshine-otel
 	else
-		row "moonshine-otel" skipped "didn't build, so no server timing or charts (logs/moonshine-otel-build.log)"
+		row "moonshine-otel" skipped "didn't build: no host timing, telemetry or report card (logs/moonshine-otel-build.log)"
 	fi
 fi
 if [ $serve = 0 ] && has_socket test; then
@@ -1369,7 +1369,7 @@ if [ $baseline = 1 ] && [ ${#compare_wls[@]} -gt 0 ]; then
 	build base || compare=0
 	if [ $compare = 1 ] && [ $speed = 1 ] && ! has_socket base; then
 		speed=0
-		row "Speed vs baseline" skipped "baseline Moonshine ${label[base/moonshine]} has no statistics socket; pick one that does with --baseline-ref"
+		row "Speed vs baseline" skipped "baseline Moonshine ${label[base/moonshine]} has no statistics socket; pick one that does with --baseline-moonshine REF"
 	fi
 fi
 

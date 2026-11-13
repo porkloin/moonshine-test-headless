@@ -1,5 +1,5 @@
 {
-  "status": "Provisional: drawn from other streaming projects' published claims, which each measure differently. Open to discussion.",
+  "status": "Provisional. Where a metric cites references, they are other projects' published figures, each measured differently. Open to discussion.",
   "metrics": {
     "bad_pictures": {
       "measure": "correctness",
@@ -10,7 +10,7 @@
       "scale": "step",
       "target": 0,
       "acceptable": 0,
-      "basis": "Decode failures plus corrupt decodes. Any is a bug: 100 with none, else 0."
+      "basis": "Decode failures plus corrupt decodes. Any is a bug: scores 100 with none, else 0."
     },
     "missing_clean": {
       "measure": "correctness",
@@ -21,7 +21,7 @@
       "scale": "step",
       "target": 0,
       "acceptable": 3,
-      "basis": "Frames that never arrived on streams with nothing dropped: 100 with none, 50 with up to 3."
+      "basis": "Frames that never arrived on streams with nothing dropped. Scores 100 with none, 50 with up to 3, else 0."
     },
     "frame_time_p99": {
       "measure": "smoothness",
@@ -74,7 +74,7 @@
       "better": "lower",
       "target": 3,
       "acceptable": 8,
-      "basis": "Mostly the encode, which scales with resolution, not frame rate. Other hosts report 0.45–4.4 ms. The target is set from 1080p claims: at 4K the encode alone takes about 5–7 ms on RDNA 3 and 4 (henwen's 7900 XTX, rosso's 9070 XT, 2026-11-11).",
+      "basis": "Mostly the encode, which scales with resolution, not frame rate. Published figures, none a host p99: Rubylight's encode 2.6–3.1 ms at 1440p120, Punktfunk's encode p99 4.4 ms under load. The target is set from 1080p claims: at 4K the encode alone takes about 5–7 ms on RDNA 3 and 4 (henwen's 7900 XTX, rosso's 9070 XT, 2026-11-11).",
       "see": [
         {
           "label": "Percentile",
@@ -89,7 +89,7 @@
         },
         {
           "project": "Punktfunk",
-          "claim": "p50 ~0.8 ms capture → received at 720p120 on its punktfunk/1 protocol, NVIDIA zero-copy NVENC (README June–September 2026; span ends at the client, so it includes the network; machines not stated)",
+          "claim": "p50 ~0.8 ms capture to received, 720p120, NVENC zero-copy; includes the network",
           "url": "https://git.unom.io/unom/punktfunk/src/commit/e021d7fddfdadcf00326de309be90adca4029983/README.md"
         },
         {
@@ -126,7 +126,7 @@
       "references": [
         {
           "project": "Rubylight",
-          "claim": "mean gap after a keyframe cut from 8.44 to 5.30 ms (HEVC, recovery cadence work)",
+          "claim": "mean gap after a keyframe cut from 8.44 to 5.30 ms (HEVC, recovery cadence work); its \"gap\" isn't defined, so not comparable",
           "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
         }
       ]
@@ -172,12 +172,12 @@
       "references": [
         {
           "project": "Rubylight",
-          "claim": "5.89 ms median capture to client present, AV1 1080p60, loopback",
+          "claim": "5.89 ms median capture to client present, AV1 1080p60, loopback (capture to present, no input)",
           "url": "https://github.com/RamazanKara/Rubylight"
         },
         {
           "project": "Nightjar",
-          "claim": "7 ms median picture age, capture to rendered, Retroid Pocket 6 over Wi-Fi, HEVC 1080p60",
+          "claim": "7 ms median picture age, capture to rendered, Retroid Pocket 6 over Wi-Fi, HEVC 1080p60 (capture to present, no input)",
           "url": "https://github.com/RamazanKara/nightjar"
         }
       ]
@@ -224,7 +224,7 @@
       "references": [
         {
           "project": "Rubylight",
-          "claim": "117–120 fresh pictures/s at 120 fps under GPU load; Vibepollo 2.0 103–118",
+          "claim": "117–120 fresh pictures/s at 120 fps under GPU load; Vibepollo 2.0 103–118 (HEVC)",
           "url": "https://github.com/RamazanKara/Rubylight/blob/main/docs/performance.md"
         },
         {
