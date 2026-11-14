@@ -116,6 +116,11 @@ def only_if_compared(expr):
 SCORED = {
     # 0 only when there were streams to count in: a side without them is "not measured", not a clean score.
     "bad_pictures": lambda sel: f'sum({whole("moonshine_client_frames_total", sel + ", result!=\"ok\"")}) or 0 * sum({whole("moonshine_client_frames_total", sel)})',
+    # framestamp's streams: pictures that didn't match what it drew, and the longest corruption from a recovery on.
+    "picture_corrupt": lambda sel: (
+        f'sum({whole("moonshine_client_picture_frames_total", sel + ", result=\"corrupt\"")})'
+        f' or 0 * sum({whole("moonshine_client_picture_frames_total", sel)})'),
+    "picture_recovery": lambda sel: f'max({whole("moonshine_client_picture_recovery_corrupt", sel)})',
     "missing_clean": lambda sel: f'sum({whole("moonshine_client_frames_missing_total", sel + UNDROPPED)}) or 0 * sum({whole("moonshine_client_frames_total", sel + UNDROPPED)})',
     # Each stream's p99 in its own frame intervals (Moonshine's sending rate), then the median stream: pooling streams
     # at different rates mixes their intervals, and one stalled stream (lost frames and delivered rate show it) would
@@ -184,7 +189,7 @@ RUN_COLORS = [
 # Unitless metrics that aren't counts.
 DECIMALS = {"keyframes_per_switch": 2, "display_dropped": 2, "display_judder": 2}
 # What an empty tile means.
-NO_VALUE = {"freeze_p95": "no loss test", "recovered_without_keyframe": "no loss test", "click_median": "no click test",
+NO_VALUE = {"picture_corrupt": "no framestamp stream", "picture_recovery": "no framestamp stream", "freeze_p95": "no loss test", "recovered_without_keyframe": "no loss test", "click_median": "no click test",
             "keyframes_per_switch": "no HDR switch test", "load_fps": "no GPU-load test",
             "display_latency_p99": "no display model", "display_dropped": "no display model",
             "display_judder": "no display model", "client_decode_p99": "no decoding"}

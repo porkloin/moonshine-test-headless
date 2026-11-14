@@ -8,9 +8,11 @@
 # The tools it uses, pinned here (bump them here, only to what their main branch has): gamestream-test-client at a
 # commit on its main branch, built against this image's packages, and its image of that commit (sha-COMMIT, which
 # its CI publishes for every main commit) for --client runs on another machine; and a moonshine-otel release, built
-# at run time (view/Containerfile pins the same release).
-ARG GAMESTREAM_TEST_CLIENT_COMMIT=fda25b6
-ARG MOONSHINE_OTEL_VERSION=v1.3.0
+# at run time (view/Containerfile pins the same release); and a framestamp release, whose picture the client's
+# --check-picture draws again, so the two move together.
+ARG GAMESTREAM_TEST_CLIENT_COMMIT=1baef19
+ARG MOONSHINE_OTEL_VERSION=v1.4.0
+ARG FRAMESTAMP_VERSION=v0.1.0
 
 FROM docker.io/library/archlinux:latest
 LABEL org.opencontainers.image.source=https://github.com/porkloin/moonshine-test-headless
@@ -47,8 +49,10 @@ RUN echo "ghcr.io/porkloin/gamestream-test-client:sha-$GAMESTREAM_TEST_CLIENT_CO
 # The tools' versions, which every run records (CI passes this repository's commit).
 ARG MTH_COMMIT=dev
 ARG MOONSHINE_OTEL_VERSION
+ARG FRAMESTAMP_VERSION
 RUN jq -n --arg h "$MTH_COMMIT" --arg c "$GAMESTREAM_TEST_CLIENT_COMMIT" --arg o "$MOONSHINE_OTEL_VERSION" \
-      '{harness: $h, client: $c, otel: $o}' > /usr/share/moonshine-test-headless/versions.json
+      --arg f "$FRAMESTAMP_VERSION" '{harness: $h, client: $c, otel: $o, framestamp: $f}' \
+      > /usr/share/moonshine-test-headless/versions.json
 # hdrneon (the hdrneon and hdrneon-cycle workloads), from its latest release, checked against its published checksums.
 RUN cd /tmp && name=hdrneon-linux-x86_64 \
     && curl -fsSLO "https://github.com/porkloin/hdrneon/releases/latest/download/$name.tar.gz" \
@@ -63,6 +67,15 @@ RUN cd /tmp && name=clickflash-linux-x86_64 \
     && sha256sum -c --ignore-missing SHA256SUMS \
     && tar xzf "$name.tar.gz" && install -Dm755 "$name/clickflash" /usr/local/bin/clickflash \
     && rm -rf /tmp/clickflash* /tmp/SHA256SUMS
+# framestamp, the test pattern the client checks every frame of (the framestamp-* workloads): the pinned release, as
+# the client's picture check is the same release's pattern.
+ARG FRAMESTAMP_VERSION
+RUN cd /tmp && name=framestamp-linux-x86_64 \
+    && curl -fsSLO "https://github.com/porkloin/framestamp/releases/download/$FRAMESTAMP_VERSION/$name.tar.gz" \
+    && curl -fsSLO "https://github.com/porkloin/framestamp/releases/download/$FRAMESTAMP_VERSION/SHA256SUMS" \
+    && sha256sum -c --ignore-missing SHA256SUMS \
+    && tar xzf "$name.tar.gz" && install -Dm755 "$name/framestamp" /usr/local/bin/framestamp \
+    && rm -rf /tmp/framestamp* /tmp/SHA256SUMS
 # Prometheus, for moonshine-otel summary: it loads a run's telemetry into a throwaway one and asks it what the test
 # runs board asks.
 COPY --from=docker.io/prom/prometheus:v3.15.1 /bin/prometheus /usr/local/bin/prometheus

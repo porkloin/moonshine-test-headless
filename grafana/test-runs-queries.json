@@ -7,6 +7,18 @@
       "decimals": 0
     },
     {
+      "key": "picture_corrupt",
+      "expr": "sum(last_over_time(moonshine_client_picture_frames_total{{sel}, result=\"corrupt\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_picture_frames_total{{sel}}[$__range]))",
+      "empty": "no framestamp stream",
+      "decimals": 0
+    },
+    {
+      "key": "picture_recovery",
+      "expr": "max(last_over_time(moonshine_client_picture_recovery_corrupt{{sel}}[$__range]))",
+      "empty": "no framestamp stream",
+      "decimals": 0
+    },
+    {
       "key": "missing_clean",
       "expr": "sum(last_over_time(moonshine_client_frames_missing_total{{sel}, stream=~\"clean|click\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{{sel}, stream=~\"clean|click\"}[$__range]))",
       "empty": "not measured",

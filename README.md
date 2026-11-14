@@ -154,7 +154,8 @@ Put them after `--`.
   options and machines reuses it instead of building and streaming it again (`--fresh-baseline` to redo it)
 - `--calibrate 3`: stream the baseline three times instead of testing, so later `--baseline` runs can say which
   changes are bigger than run-to-run noise. Pass the same refs and options you'll test with
-- `--tier quick` or `--tier full`: fewer or more workloads
+- `--tier quick` or `--tier full`: fewer or more workloads. The standard and full tiers include framestamp, whose every
+  frame the client draws again and compares, so corrupt pictures the decoder doesn't report fail the run
 - `--iterations N`: timed streams per codec and build with `--baseline` (default 5)
 - `--mode 4k120`: stream resolution and frame rate (default `1080p60`)
 - `--help`: everything else, also documented in [AGENTS.md](AGENTS.md)
