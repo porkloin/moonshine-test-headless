@@ -1301,18 +1301,34 @@ click_row() {
 # corrupt, and the picture wasn't frozen for half the stream or more. A freeze is a gap between frames of over three
 # frame intervals (the client's stalls). The client counts the whole stream; with a warmup, the note says the report
 # card leaves its start out. A failed row says why.
+# The client's own trouble, from its JSON: keyframes it asked for itself (its decode queue overflowed, its decoder
+# failed a frame), and whether it decodes slower than the frames come (decode p99 over the frame interval, $interval
+# in ms). Older clients have neither field.
+client_jq='def client_kf: (.idr_requests_client_queue // 0) + (.idr_requests_client_decoder // 0);
+	def limited: .decode_ms_p99 != null and .decode_ms_p99 > $interval;
+	def client_notes: (if client_kf > 0 then "; the client asked for \(client_kf) keyframes itself (decode queue overflowed \(.idr_requests_client_queue), decoder failed \(.idr_requests_client_decoder))" else "" end)
+		+ (if limited then "; client-limited: decode p99 \(.decode_ms_p99 * 10 | round / 10) ms, over the \($interval * 10 | round / 10) ms frame interval" else "" end);'
+
 stream_row() {
 	local notes result=ok why
-	notes=$(jq -r 'def s: . / 1000 * 10 | round / 10;
+	notes=$(jq -r "$client_jq"'def s: . / 1000 * 10 | round / 10;
 		(if .dropped_frames > 0 then "\(.dropped_frames) frames dropped on purpose; " elif .dropped_packets > 0 then "\(.dropped_packets) packets dropped on purpose; " else "" end)
 		+ "\(.frames) frames at \(.fps * 10 | round / 10) fps, \(.missing) missing, \(.idr) keyframes"
 		+ (if .dropped_frames + .dropped_packets + .rfi_requests > 0 then ", \(.rfi_requests) RFI requests, \(.recovery_frames) recovery frames" else "" end)
 		+ (if .decode_errors + .corrupt > 0 then ", \(.decode_errors) decode errors, \(.corrupt) corrupt" else "" end)
-		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"' "$2")
+		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"
+		+ client_notes' --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$2")
 	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
 		if .decode_errors + .corrupt > 0 then "pictures that didn'"'"'t decode" else empty end,
 		if .stalled_ms >= .seconds * 500 then "frozen half the stream or more" else empty end] | join(", ")' "$2")
-	[ -z "$why" ] || { result=FAIL; notes="$why: $notes"; }
+	# Frozen because of the client (it asked for keyframes itself, or decodes slower than the frames come) isn't the
+	# host's failure: the row says so instead of failing.
+	if [ -n "$why" ] && [ "$why" = "frozen half the stream or more" ] &&
+		[ "$(jq --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$client_jq"' client_kf > 0 or limited' "$2")" = true ]; then
+		result=client notes="$why, the client's doing: $notes"
+	elif [ -n "$why" ]; then
+		result=FAIL notes="$why: $notes"
+	fi
 	[ "${3:-0}" = 0 ] || notes+=" (the whole stream; the report card leaves out its first $3 s, while the workload starts)"
 	row "$1" $result "$notes"
 }
@@ -1448,8 +1464,8 @@ all_retained() {
 	for m in "${modes[@]}"; do mode_parts "$m"; [ -s "$(retained_dir)/meta.json" ] || return 1; done
 }
 
-# fails: how many checks have failed so far.
-fails() { local r n=0; for r in "${rows[@]}"; do [[ $r != *"|FAIL|"* ]] || n=$((n + 1)); done; echo $n; }
+# fails: how many checks have failed so far, or come out the client's doing (a baseline streamed with either isn't kept).
+fails() { local r n=0; for r in "${rows[@]}"; do [[ $r != *"|FAIL|"* && $r != *"|client|"* ]] || n=$((n + 1)); done; echo $n; }
 
 # store_baseline: keep the mode's baseline: the run's telemetry (its baseline streams are side=base, or with
 # --calibrate base-N too), the baseline's benchmark results, its key and where it came from, and its noise (this

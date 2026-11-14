@@ -1,7 +1,7 @@
 # ghcr.io/porkloin/moonshine-test-headless:view: explore a run's results.tar.gz in a throwaway Grafana. Built from
 # the repository root: podman build -f view/Containerfile .
 # moonshine-otel, static, for the summary label: the release the main Containerfile pins.
-ARG MOONSHINE_OTEL_VERSION=v1.2.0
+ARG MOONSHINE_OTEL_VERSION=v1.3.0
 FROM docker.io/library/rust:1-alpine AS otel
 ARG MOONSHINE_OTEL_VERSION
 RUN apk add --no-cache musl-dev git

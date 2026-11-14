@@ -9,8 +9,8 @@
 # commit on its main branch, built against this image's packages, and its image of that commit (sha-COMMIT, which
 # its CI publishes for every main commit) for --client runs on another machine; and a moonshine-otel release, built
 # at run time (view/Containerfile pins the same release).
-ARG GAMESTREAM_TEST_CLIENT_COMMIT=8c290d6
-ARG MOONSHINE_OTEL_VERSION=v1.2.0
+ARG GAMESTREAM_TEST_CLIENT_COMMIT=fda25b6
+ARG MOONSHINE_OTEL_VERSION=v1.3.0
 
 FROM docker.io/library/archlinux:latest
 LABEL org.opencontainers.image.source=https://github.com/porkloin/moonshine-test-headless
