@@ -32,6 +32,10 @@ podman flags, and how the repository is laid out. README.md is the short version
   `client_version`, `otel_version`, or the image `--client-image` named) and in its own `versions.json`, and
   `summary.md` names them and warns when two runs set side by side differ.
 
+  - `FRAMESTAMP_VERSION`: a [framestamp](https://github.com/porkloin/framestamp) release, the test pattern whose
+    every frame the client draws again (`--check-picture`). The client's `pattern.c` has to draw the same picture,
+    so bump the two together.
+
   Bump a pin only to a commit or tag on the tool's main branch, so a squash merge can't leave it pointing at nothing.
   To try an unmerged client, build with `--build-arg GAMESTREAM_TEST_CLIENT_COMMIT=...` and pass the matching image
   to `--client-image`.
@@ -209,7 +213,8 @@ Moonshine's config gets an app per workload of the run, titled with its id. A wo
 | `warmup_s` | seconds from each stream's first frame that the client's metrics leave out (`moonshine-otel client --warmup`), for a workload that takes a while to start rendering: GravityMark loads for about 4 s at about a frame a second. Its spans are still sent, marked `warmup`; the check row counts the whole stream and says so. Default 0 |
 | `hdr` | always stream it in HDR |
 | `streams` | which streams per codec: `clean` (`--seconds`), `loss` (with `--loss-frame-every 120`, or `--chaos`), `click` (at least 60 s, clicking every 300 ms) |
-| `measures` | the measurements that apply to it, which streams it gets and which panels the test runs board gives its section (`grafana/generate.py`): `correctness`, `smoothness`, `server_latency`, `loss_recovery`, `click_latency`, `hdr_transitions`, `load`, `bitrate` |
+| `measures` | the measurements that apply to it, which streams it gets and which panels the test runs board gives its section (`grafana/generate.py`): `correctness`, `picture`, `smoothness`, `server_latency`, `loss_recovery`, `click_latency`, `hdr_transitions`, `load`, `bitrate` |
+| `client_args` | client options for its decoded streams, e.g. framestamp's `["--check-picture"]` (not its timed streams, which don't decode) |
 | `switch_every_s` | seconds between content switches, for `hdr_transitions` |
 | `baseline` | stream it for the `--baseline` comparison: its battery streams from the baseline build too, and timed streams from both builds when it measures `server_latency` or `smoothness` |
 
@@ -221,10 +226,14 @@ Moonshine's config gets an app per workload of the run, titled with its id. A wo
 | `hdrneon` | `hdrneon --fullscreen --mode sdr` (`hdr10` with `--hdr`) | clean, loss | its latest GitHub release, checked against `SHA256SUMS` at image build |
 | `hdrneon-cycle` | `hdrneon --fullscreen --mode hdr10 --cycle 1`, always HDR | clean, loss | the same |
 | `clickflash` | `clickflash --fullscreen` | click | the same |
+| `framestamp-full` | `framestamp --fullscreen --mode full`, the client checking every frame (`--check-picture`) | clean, loss | the release pinned as `FRAMESTAMP_VERSION` at the top of the Containerfile, checked against its `SHA256SUMS` (pinned, not latest: the client's check draws that release's picture) |
+| `framestamp-static` | the same, `--mode static`: only the stamp changes | clean, loss | the same |
+| `framestamp-region` | the same, `--mode region`: one sprite over a still background | clean, loss | the same |
 | `clickflash:no-vsync` | `clickflash --fullscreen --no-vsync --flash-ms 34` | click | the same, presenting with mailbox or immediate instead of FIFO; each flash stays up 34 ms so the compositor catches it |
 | `gravitymark[:N]` | `GravityMark.x64 -vulkan -fullscreen 1 -width $MOONSHINE_CLIENT_WIDTH -height $MOONSHINE_CLIENT_HEIGHT -vsync 0 -asteroids N -nosensors 1 -fps 0 -info 0` (Moonshine sets those to the stream's size) | clean, loss | downloaded at run time, see below |
 
-Tiers: `quick` = vkcube; `standard` = vkcube, hdrneon-cycle, clickflash; `full` = standard + gravitymark.
+Tiers: `quick` = vkcube; `standard` = vkcube, framestamp-full, hdrneon-cycle, clickflash; `full` = standard +
+framestamp-static, framestamp-region, gravitymark.
 
 GravityMark is Tellusim's GPU stress test, under an evaluation license (testing only, no commercial use) that forbids
 redistributing it, so it isn't in the image. On first use the script downloads
@@ -257,7 +266,7 @@ In order; a failed build stops the run.
 | HDR | with an HDR workload and no statistics socket: skipped, since nothing confirms the streams were HDR |
 | `<workload>: <codec> HDR` failing with "asked for HDR, Moonshine streamed SDR" | an HDR workload with the statistics socket: the stream moonshine-otel recorded wasn't HDR |
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
-| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. Frozen half the stream because of the client, though (it asked for keyframes itself, its decode queue overflowing or its decoder failing a frame, or its decode p99 is over the frame interval) is the row's `client` result, not FAIL: the host isn't failed for the client machine's trouble, and a baseline with such a row isn't kept. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames; and then the client's own trouble: keyframes it asked for itself (by why) and "client-limited" when its decode p99 is over the frame interval. What a display would show (the client's model of moonlight-qt's presenting) is on the report card and the board, not here. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
+| `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. Frozen half the stream because of the client, though (it asked for keyframes itself, its decode queue overflowing or its decoder failing a frame, or its decode p99 is over the frame interval) is the row's `client` result, not FAIL: the host isn't failed for the client machine's trouble, and a baseline with such a row isn't kept. On framestamp's streams (`--check-picture`) it also fails for corrupt pictures with nothing lost (the encoder's), corruption lasting past the frame after a recovery frame or keyframe (recovery not making the picture whole), or most stamps unreadable (the picture isn't framestamp's at the stream's size), and the notes add how many were corrupt. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames; and then the client's own trouble: keyframes it asked for itself (by why) and "client-limited" when its decode p99 is over the frame interval. What a display would show (the client's model of moonlight-qt's presenting) is on the report card and the board, not here. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
 | `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
 | Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
 | Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict). An ok row counts the report's other verdicts ("no regression; 9 improved, 4 changed") |

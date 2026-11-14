@@ -15,11 +15,15 @@
     ],
     "standard": [
       "vkcube",
+      "framestamp-full",
       "hdrneon-cycle",
       "clickflash"
     ],
     "full": [
       "vkcube",
+      "framestamp-full",
+      "framestamp-static",
+      "framestamp-region",
       "hdrneon-cycle",
       "clickflash",
       "gravitymark"
@@ -45,6 +49,81 @@
         "server_latency",
         "loss_recovery",
         "bitrate"
+      ],
+      "baseline": true
+    },
+    "framestamp-full": {
+      "title": "framestamp, full motion",
+      "description": "framestamp's scene: a panning, turning camera, parallax, sprites, particles and scene cuts, every frame drawn again by the client to check what it decoded.",
+      "load": "low",
+      "command": [
+        "/usr/local/bin/framestamp",
+        "--fullscreen",
+        "--mode",
+        "full"
+      ],
+      "client_args": [
+        "--check-picture"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "picture",
+        "smoothness",
+        "server_latency",
+        "loss_recovery",
+        "bitrate"
+      ],
+      "baseline": true
+    },
+    "framestamp-static": {
+      "title": "framestamp, still",
+      "description": "framestamp with only its stamp changing: what the client decodes of a still screen, after loss and recovery, checked against what was drawn.",
+      "load": "low",
+      "command": [
+        "/usr/local/bin/framestamp",
+        "--fullscreen",
+        "--mode",
+        "static"
+      ],
+      "client_args": [
+        "--check-picture"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "picture",
+        "loss_recovery"
+      ],
+      "baseline": true
+    },
+    "framestamp-region": {
+      "title": "framestamp, one sprite",
+      "description": "framestamp with one sprite crossing a still background, like vkcube, but checked frame by frame.",
+      "load": "low",
+      "command": [
+        "/usr/local/bin/framestamp",
+        "--fullscreen",
+        "--mode",
+        "region"
+      ],
+      "client_args": [
+        "--check-picture"
+      ],
+      "streams": [
+        "clean",
+        "loss"
+      ],
+      "measures": [
+        "correctness",
+        "picture",
+        "loss_recovery"
       ],
       "baseline": true
     },

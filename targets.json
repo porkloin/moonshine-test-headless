@@ -12,6 +12,28 @@
       "acceptable": 0,
       "basis": "Decode failures plus corrupt decodes. Any is a bug: scores 100 with none, else 0."
     },
+    "picture_corrupt": {
+      "measure": "picture",
+      "label": "corrupt pictures",
+      "what": "Decoded frames that didn't match the frame framestamp drew (its worst tile off by more than gamestream-test-client's --picture-threshold, 20 luma levels on average), on every framestamp stream: corruption the decoder didn't report, such as a picture built on a reference the client threw away.",
+      "unit": "",
+      "better": "lower",
+      "scale": "step",
+      "target": 0,
+      "acceptable": 0,
+      "basis": "Any corrupt picture is a bug: on a clean stream the encoder's, after loss the recovery's. Scores 100 with none, else 0."
+    },
+    "picture_recovery": {
+      "measure": "picture",
+      "label": "corrupt after recovery",
+      "what": "The most framestamp frames in a row still corrupt from a recovery frame or keyframe on, on every framestamp stream: 0 when every recovery made the picture whole at once.",
+      "unit": "",
+      "better": "lower",
+      "scale": "step",
+      "target": 0,
+      "acceptable": 1,
+      "basis": "A recovery frame should make the picture whole. Scores 100 with none corrupt, 50 when only the recovery frame itself was, else 0."
+    },
     "missing_clean": {
       "measure": "correctness",
       "label": "lost frames",

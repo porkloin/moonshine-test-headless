@@ -547,7 +547,7 @@ if [ ${#apps[@]} -eq 0 ] && [ -z "$app_command" ]; then
 	mapfile -t apps < <(jq -r --arg t "$tier" '.tiers[$t][]?' "$battery")
 	[ ${#apps[@]} -gt 0 ] || die "no tier '$tier' in $battery ($(jq -r '.tiers | keys | join(", ")' "$battery"))"
 fi
-declare -A wl_log wl_title wl_load wl_warmup wl_hdr wl_streams wl_measures wl_switch wl_baseline wl_cmd
+declare -A wl_log wl_title wl_load wl_warmup wl_hdr wl_streams wl_measures wl_switch wl_baseline wl_cmd wl_client
 workloads=() any_hdr=$hdr
 
 # add_workload ID JSON COMMAND...: register a workload from its battery entry (JSON) and the command it runs.
@@ -563,6 +563,8 @@ add_workload() {
 	wl_measures[$id]=$(jq -c '.measures // ["correctness", "smoothness", "server_latency", "loss_recovery", "bitrate"]' <<< "$def")
 	wl_switch[$id]=$(jq -r '.switch_every_s // empty' <<< "$def")
 	wl_baseline[$id]=$(jq -r 'if .baseline == true then 1 else 0 end' <<< "$def")
+	# The client's options for the workload's decoded streams (framestamp's: --check-picture), one a line.
+	wl_client[$id]=$(jq -r '(.client_args // [])[]' <<< "$def")
 	# With traces, a workload that logs what it sees (clickflash's inputs and flashes, hdrneon's switches) writes it
 	# where the stream's app reader follows it.
 	wl_log[$id]=$(jq -r 'if .log == true then 1 else 0 end' <<< "$def")
@@ -1111,7 +1113,9 @@ write_versions() {
 	refs=$(for k in "${!commit[@]}"; do printf '%s\t%s\n' "$k" "${commit[$k]}"; done |
 		jq -Rn '[inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries')
 	jq -n --arg h "$harness_version" --arg c "$(client_version_used)" --arg o "$otel_version" --argjson code "$refs" \
-		'{"moonshine-test-headless": $h, "gamestream-test-client": $c, "moonshine-otel": $o, code: $code}' > "$out/versions.json"
+		--arg f "$(jq -r '.framestamp // "N/A"' <<< "$versions")" \
+		'{"moonshine-test-headless": $h, "gamestream-test-client": $c, "moonshine-otel": $o, framestamp: $f, code: $code}' \
+		> "$out/versions.json"
 }
 
 run_info() {
@@ -1317,10 +1321,20 @@ stream_row() {
 		+ (if .dropped_frames + .dropped_packets + .rfi_requests > 0 then ", \(.rfi_requests) RFI requests, \(.recovery_frames) recovery frames" else "" end)
 		+ (if .decode_errors + .corrupt > 0 then ", \(.decode_errors) decode errors, \(.corrupt) corrupt" else "" end)
 		+ ", \(.stalls) freezes (\(.stalled_ms | s) s of \(.seconds * 10 | round / 10) s frozen)"
-		+ client_notes' --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$2")
+		+ client_notes
+		+ (if .picture_checked != null then "; picture: \(.picture_corrupt) corrupt of \(.picture_checked) checked"
+			+ (if .picture_unreadable > 0 then ", \(.picture_unreadable) unreadable" else "" end)
+			+ (if .picture_recovery_corrupt_max > 0 then ", corrupt \(.picture_recovery_corrupt_max) frames after a recovery" else "" end)
+			else "" end)' --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$2")
 	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
 		if .decode_errors + .corrupt > 0 then "pictures that didn'"'"'t decode" else empty end,
-		if .stalled_ms >= .seconds * 500 then "frozen half the stream or more" else empty end] | join(", ")' "$2")
+		if .stalled_ms >= .seconds * 500 then "frozen half the stream or more" else empty end,
+		# framestamp: a corrupt picture where nothing was lost is the encoder'"'"'s, and corruption past the frame a
+		# recovery (or keyframe) should have made whole is recovery failing; most stamps unreadable is a picture that
+		# isn'"'"'t framestamp'"'"'s at the stream'"'"'s size.
+		if .picture_checked != null and .picture_unreadable * 2 >= .picture_checked then "picture not readable as framestamp'"'"'s" else empty end,
+		if .picture_checked != null and .dropped_frames + .dropped_packets == 0 and .picture_corrupt > 0 then "corrupt pictures with nothing lost" else empty end,
+		if .picture_checked != null and .picture_recovery_corrupt_max > 1 then "still corrupt \(.picture_recovery_corrupt_max) frames after a recovery" else empty end] | join(", ")' "$2")
 	# Frozen because of the client (it asked for keyframes itself, or decodes slower than the frames come) isn't the
 	# host's failure: the row says so instead of failing.
 	if [ -n "$why" ] && [ "$why" = "frozen half the stream or more" ] &&
@@ -1374,6 +1388,7 @@ battery_streams() {
 				f=$ldir/$(file "$w")-$codec-$run
 				# --quit ends the session, so the next stream starts a new one in its own codec.
 				args=(stream "$w" --codec "$codec" --quit --json "$f.json" --csv "$f.csv")
+				[ -z "${wl_client[$w]}" ] || mapfile -t -O "${#args[@]}" args <<< "${wl_client[$w]}"
 				case $run in
 				clean) args+=(--seconds "$seconds") ;;
 				loss)
