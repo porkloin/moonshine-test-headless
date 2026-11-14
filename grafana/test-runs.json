@@ -1101,7 +1101,7 @@
     {
       "type": "stat",
       "title": "Decoded to on screen p99",
-      "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+      "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1177,7 +1177,7 @@
     {
       "type": "stat",
       "title": "Dropped by the display",
-      "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+      "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1253,7 +1253,7 @@
     {
       "type": "stat",
       "title": "Judder",
-      "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+      "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1325,6 +1325,158 @@
         "h": 4
       },
       "id": 8
+    },
+    {
+      "type": "stat",
+      "title": "Client decode p99",
+      "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", stream=\"clean\"}[$__range]))))))))",
+          "legendFormat": "",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: frames",
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "no decoding",
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "no decoding",
+                  "color": "#5a5f66",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "orientation": "auto"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "id": 9
+    },
+    {
+      "type": "stat",
+      "title": "Keyframes the client caused",
+      "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))",
+          "legendFormat": "",
+          "refId": "A",
+          "format": "time_series",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "noValue": "not measured",
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "text": "not measured",
+                  "color": "#5a5f66",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "orientation": "auto"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "id": 10
     },
     {
       "type": "stat",
@@ -1403,12 +1555,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 4,
+        "x": 12,
         "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 9
+      "id": 11
     },
     {
       "type": "stat",
@@ -1487,12 +1639,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 8,
+        "x": 16,
         "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 10
+      "id": 12
     },
     {
       "type": "stat",
@@ -1508,7 +1660,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range])))",
+          "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
           "legendFormat": "",
           "refId": "A",
           "format": "time_series",
@@ -1571,12 +1723,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 12,
+        "x": 20,
         "y": 5,
         "w": 4,
         "h": 4
       },
-      "id": 11
+      "id": 13
     },
     {
       "type": "stat",
@@ -1655,12 +1807,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 16,
-        "y": 5,
+        "x": 0,
+        "y": 9,
         "w": 4,
         "h": 4
       },
-      "id": 12
+      "id": 14
     },
     {
       "type": "stat",
@@ -1739,12 +1891,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 20,
-        "y": 5,
+        "x": 4,
+        "y": 9,
         "w": 4,
         "h": 4
       },
-      "id": 13
+      "id": 15
     },
     {
       "type": "stat",
@@ -1823,12 +1975,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 0,
+        "x": 8,
         "y": 9,
         "w": 4,
         "h": 4
       },
-      "id": 14
+      "id": 16
     },
     {
       "type": "stat",
@@ -1907,12 +2059,12 @@
         "orientation": "auto"
       },
       "gridPos": {
-        "x": 4,
+        "x": 12,
         "y": 9,
         "w": 4,
         "h": 4
       },
-      "id": 15
+      "id": 17
     },
     {
       "type": "row",
@@ -1925,7 +2077,7 @@
         "w": 24,
         "h": 1
       },
-      "id": 16
+      "id": 18
     },
     {
       "type": "table",
@@ -2073,7 +2225,7 @@
         "w": 8,
         "h": 13
       },
-      "id": 17
+      "id": 19
     },
     {
       "type": "table",
@@ -2221,7 +2373,7 @@
         "w": 8,
         "h": 13
       },
-      "id": 18
+      "id": 20
     },
     {
       "type": "table",
@@ -2411,7 +2563,7 @@
         "w": 8,
         "h": 13
       },
-      "id": 19
+      "id": 21
     },
     {
       "type": "row",
@@ -2500,7 +2652,7 @@
             "w": 4,
             "h": 4
           },
-          "id": 21
+          "id": 23
         },
         {
           "type": "stat",
@@ -2584,7 +2736,7 @@
             "w": 4,
             "h": 4
           },
-          "id": 22
+          "id": 24
         },
         {
           "type": "stat",
@@ -2668,7 +2820,7 @@
             "w": 4,
             "h": 4
           },
-          "id": 23
+          "id": 25
         },
         {
           "type": "stat",
@@ -2752,12 +2904,12 @@
             "w": 4,
             "h": 4
           },
-          "id": 24
+          "id": 26
         },
         {
           "type": "stat",
           "title": "Decoded to on screen p99",
-          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2828,12 +2980,12 @@
             "w": 4,
             "h": 4
           },
-          "id": 25
+          "id": 27
         },
         {
           "type": "stat",
           "title": "Dropped by the display",
-          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2904,12 +3056,12 @@
             "w": 4,
             "h": 4
           },
-          "id": 26
+          "id": 28
         },
         {
           "type": "stat",
           "title": "Judder",
-          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -2980,7 +3132,159 @@
             "w": 4,
             "h": 4
           },
-          "id": 27
+          "id": 29
+        },
+        {
+          "type": "stat",
+          "title": "Client decode p99",
+          "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", stream=\"clean\"}[$__range]))))))))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no decoding",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no decoding",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value",
+            "wideLayout": true,
+            "orientation": "auto"
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 32,
+            "w": 4,
+            "h": 4
+          },
+          "id": 30
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))",
+              "legendFormat": "",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value",
+            "wideLayout": true,
+            "orientation": "auto"
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 32,
+            "w": 4,
+            "h": 4
+          },
+          "id": 31
         },
         {
           "type": "stat",
@@ -3059,12 +3363,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 4,
+            "x": 12,
             "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 28
+          "id": 32
         },
         {
           "type": "stat",
@@ -3143,12 +3447,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 8,
+            "x": 16,
             "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 29
+          "id": 33
         },
         {
           "type": "stat",
@@ -3164,7 +3468,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "",
               "refId": "B",
               "format": "time_series",
@@ -3227,12 +3531,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 12,
+            "x": 20,
             "y": 32,
             "w": 4,
             "h": 4
           },
-          "id": 30
+          "id": 34
         },
         {
           "type": "stat",
@@ -3311,12 +3615,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 16,
-            "y": 32,
+            "x": 0,
+            "y": 36,
             "w": 4,
             "h": 4
           },
-          "id": 31
+          "id": 35
         },
         {
           "type": "stat",
@@ -3395,12 +3699,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 20,
-            "y": 32,
+            "x": 4,
+            "y": 36,
             "w": 4,
             "h": 4
           },
-          "id": 32
+          "id": 36
         },
         {
           "type": "stat",
@@ -3479,12 +3783,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 0,
+            "x": 8,
             "y": 36,
             "w": 4,
             "h": 4
           },
-          "id": 33
+          "id": 37
         },
         {
           "type": "stat",
@@ -3563,12 +3867,12 @@
             "orientation": "auto"
           },
           "gridPos": {
-            "x": 4,
+            "x": 12,
             "y": 36,
             "w": 4,
             "h": 4
           },
-          "id": 34
+          "id": 38
         }
       ],
       "gridPos": {
@@ -3577,7 +3881,7 @@
         "w": 24,
         "h": 1
       },
-      "id": 20
+      "id": 22
     },
     {
       "type": "row",
@@ -3730,7 +4034,7 @@
             "w": 8,
             "h": 13
           },
-          "id": 36
+          "id": 40
         },
         {
           "type": "table",
@@ -3878,7 +4182,7 @@
             "w": 8,
             "h": 13
           },
-          "id": 37
+          "id": 41
         },
         {
           "type": "table",
@@ -4068,7 +4372,7 @@
             "w": 8,
             "h": 13
           },
-          "id": 38
+          "id": 42
         }
       ],
       "gridPos": {
@@ -4077,7 +4381,7 @@
         "w": 24,
         "h": 1
       },
-      "id": 35
+      "id": 39
     },
     {
       "type": "row",
@@ -4182,7 +4486,7 @@
             "w": 4,
             "h": 5
           },
-          "id": 40
+          "id": 44
         },
         {
           "type": "stat",
@@ -4282,7 +4586,7 @@
             "w": 4,
             "h": 5
           },
-          "id": 41
+          "id": 45
         },
         {
           "type": "stat",
@@ -4382,7 +4686,7 @@
             "w": 4,
             "h": 5
           },
-          "id": 42
+          "id": 46
         },
         {
           "type": "stat",
@@ -4482,12 +4786,12 @@
             "w": 4,
             "h": 5
           },
-          "id": 43
+          "id": 47
         },
         {
           "type": "stat",
           "title": "Decoded to on screen p99",
-          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -4574,12 +4878,12 @@
             "w": 4,
             "h": 5
           },
-          "id": 44
+          "id": 48
         },
         {
           "type": "stat",
           "title": "Dropped by the display",
-          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -4666,12 +4970,12 @@
             "w": 4,
             "h": 5
           },
-          "id": 45
+          "id": 49
         },
         {
           "type": "stat",
           "title": "Judder",
-          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -4758,7 +5062,99 @@
             "w": 4,
             "h": 5
           },
-          "id": 46
+          "id": 50
+        },
+        {
+          "type": "stat",
+          "title": "Client decode p99",
+          "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))))))))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", stream=\"clean\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no decoding",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no decoding",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 60,
+            "w": 4,
+            "h": 5
+          },
+          "id": 51
         },
         {
           "type": "stat",
@@ -4853,12 +5249,104 @@
             }
           },
           "gridPos": {
-            "x": 4,
+            "x": 8,
             "y": 60,
             "w": 4,
             "h": 5
           },
-          "id": 47
+          "id": 52
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 60,
+            "w": 4,
+            "h": 5
+          },
+          "id": 53
         },
         {
           "type": "stat",
@@ -4953,12 +5441,12 @@
             }
           },
           "gridPos": {
-            "x": 8,
+            "x": 16,
             "y": 60,
             "w": 4,
             "h": 5
           },
-          "id": 48
+          "id": 54
         },
         {
           "type": "stat",
@@ -4974,7 +5462,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"vkcube\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -4986,7 +5474,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"vkcube\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -5053,12 +5541,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
+            "x": 20,
             "y": 60,
             "w": 4,
             "h": 5
           },
-          "id": 49
+          "id": 55
         },
         {
           "type": "stat",
@@ -5153,12 +5641,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 60,
-            "w": 4,
+            "x": 0,
+            "y": 65,
+            "w": 24,
             "h": 5
           },
-          "id": 50
+          "id": 56
         },
         {
           "type": "barchart",
@@ -5332,11 +5820,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 65,
+            "y": 70,
             "w": 8,
             "h": 8
           },
-          "id": 51
+          "id": 57
         },
         {
           "type": "trend",
@@ -5472,11 +5960,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 65,
+            "y": 70,
             "w": 8,
             "h": 8
           },
-          "id": 52
+          "id": 58
         },
         {
           "type": "barchart",
@@ -5646,11 +6134,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 65,
+            "y": 70,
             "w": 8,
             "h": 8
           },
-          "id": 53
+          "id": 59
         },
         {
           "type": "barchart",
@@ -5773,11 +6261,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 73,
+            "y": 78,
             "w": 8,
             "h": 8
           },
-          "id": 54
+          "id": 60
         },
         {
           "type": "barchart",
@@ -5978,11 +6466,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 73,
+            "y": 78,
             "w": 8,
             "h": 8
           },
-          "id": 55
+          "id": 61
         },
         {
           "type": "barchart",
@@ -6152,11 +6640,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 73,
+            "y": 78,
             "w": 8,
             "h": 8
           },
-          "id": 56
+          "id": 62
         },
         {
           "type": "trend",
@@ -6333,11 +6821,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 81,
+            "y": 86,
             "w": 8,
             "h": 8
           },
-          "id": 57
+          "id": 63
         }
       ],
       "gridPos": {
@@ -6346,7 +6834,7 @@
         "w": 24,
         "h": 1
       },
-      "id": 39
+      "id": 43
     },
     {
       "type": "row",
@@ -6447,11 +6935,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 90,
+            "y": 95,
             "w": 4,
             "h": 5
           },
-          "id": 59
+          "id": 65
         },
         {
           "type": "stat",
@@ -6547,11 +7035,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 90,
+            "y": 95,
             "w": 4,
             "h": 5
           },
-          "id": 60
+          "id": 66
         },
         {
           "type": "stat",
@@ -6647,11 +7135,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 90,
+            "y": 95,
             "w": 4,
             "h": 5
           },
-          "id": 61
+          "id": 67
         },
         {
           "type": "stat",
@@ -6747,16 +7235,16 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 90,
+            "y": 95,
             "w": 4,
             "h": 5
           },
-          "id": 62
+          "id": 68
         },
         {
           "type": "stat",
           "title": "Decoded to on screen p99",
-          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -6839,16 +7327,16 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 90,
+            "y": 95,
             "w": 4,
             "h": 5
           },
-          "id": 63
+          "id": 69
         },
         {
           "type": "stat",
           "title": "Dropped by the display",
-          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -6931,16 +7419,16 @@
           },
           "gridPos": {
             "x": 20,
-            "y": 90,
+            "y": 95,
             "w": 4,
             "h": 5
           },
-          "id": 64
+          "id": 70
         },
         {
           "type": "stat",
           "title": "Judder",
-          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -7023,11 +7511,103 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 95,
+            "y": 100,
             "w": 4,
             "h": 5
           },
-          "id": 65
+          "id": 71
+        },
+        {
+          "type": "stat",
+          "title": "Client decode p99",
+          "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))))))))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", stream=\"clean\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no decoding",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no decoding",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 100,
+            "w": 4,
+            "h": 5
+          },
+          "id": 72
         },
         {
           "type": "stat",
@@ -7122,12 +7702,104 @@
             }
           },
           "gridPos": {
-            "x": 4,
-            "y": 95,
+            "x": 8,
+            "y": 100,
             "w": 4,
             "h": 5
           },
-          "id": 66
+          "id": 73
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 100,
+            "w": 4,
+            "h": 5
+          },
+          "id": 74
         },
         {
           "type": "stat",
@@ -7222,12 +7894,12 @@
             }
           },
           "gridPos": {
-            "x": 8,
-            "y": 95,
+            "x": 16,
+            "y": 100,
             "w": 4,
             "h": 5
           },
-          "id": 67
+          "id": 75
         },
         {
           "type": "stat",
@@ -7243,7 +7915,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -7255,7 +7927,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -7322,12 +7994,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 95,
+            "x": 20,
+            "y": 100,
             "w": 4,
             "h": 5
           },
-          "id": 68
+          "id": 76
         },
         {
           "type": "stat",
@@ -7422,12 +8094,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 95,
-            "w": 4,
+            "x": 0,
+            "y": 105,
+            "w": 24,
             "h": 5
           },
-          "id": 69
+          "id": 77
         },
         {
           "type": "barchart",
@@ -7601,11 +8273,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 100,
+            "y": 110,
             "w": 8,
             "h": 8
           },
-          "id": 70
+          "id": 78
         },
         {
           "type": "trend",
@@ -7741,11 +8413,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 100,
+            "y": 110,
             "w": 8,
             "h": 8
           },
-          "id": 71
+          "id": 79
         },
         {
           "type": "barchart",
@@ -7915,11 +8587,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 100,
+            "y": 110,
             "w": 8,
             "h": 8
           },
-          "id": 72
+          "id": 80
         },
         {
           "type": "barchart",
@@ -8042,11 +8714,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 108,
+            "y": 118,
             "w": 8,
             "h": 8
           },
-          "id": 73
+          "id": 81
         },
         {
           "type": "barchart",
@@ -8247,11 +8919,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 108,
+            "y": 118,
             "w": 8,
             "h": 8
           },
-          "id": 74
+          "id": 82
         },
         {
           "type": "barchart",
@@ -8421,11 +9093,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 108,
+            "y": 118,
             "w": 8,
             "h": 8
           },
-          "id": 75
+          "id": 83
         },
         {
           "type": "trend",
@@ -8602,20 +9274,20 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 116,
+            "y": 126,
             "w": 8,
             "h": 8
           },
-          "id": 76
+          "id": 84
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 89,
+        "y": 94,
         "w": 24,
         "h": 1
       },
-      "id": 58
+      "id": 64
     },
     {
       "type": "row",
@@ -8716,11 +9388,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 125,
+            "y": 135,
             "w": 4,
             "h": 5
           },
-          "id": 78
+          "id": 86
         },
         {
           "type": "stat",
@@ -8816,11 +9488,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 125,
+            "y": 135,
             "w": 4,
             "h": 5
           },
-          "id": 79
+          "id": 87
         },
         {
           "type": "stat",
@@ -8916,11 +9588,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 125,
+            "y": 135,
             "w": 4,
             "h": 5
           },
-          "id": 80
+          "id": 88
         },
         {
           "type": "stat",
@@ -9016,16 +9688,16 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 125,
+            "y": 135,
             "w": 4,
             "h": 5
           },
-          "id": 81
+          "id": 89
         },
         {
           "type": "stat",
           "title": "Decoded to on screen p99",
-          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -9108,16 +9780,16 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 125,
+            "y": 135,
             "w": 4,
             "h": 5
           },
-          "id": 82
+          "id": 90
         },
         {
           "type": "stat",
           "title": "Dropped by the display",
-          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -9200,16 +9872,16 @@
           },
           "gridPos": {
             "x": 20,
-            "y": 125,
+            "y": 135,
             "w": 4,
             "h": 5
           },
-          "id": 83
+          "id": 91
         },
         {
           "type": "stat",
           "title": "Judder",
-          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -9292,11 +9964,103 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 130,
+            "y": 140,
             "w": 4,
             "h": 5
           },
-          "id": 84
+          "id": 92
+        },
+        {
+          "type": "stat",
+          "title": "Client decode p99",
+          "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))))))))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", stream=\"clean\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no decoding",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no decoding",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 140,
+            "w": 4,
+            "h": 5
+          },
+          "id": 93
         },
         {
           "type": "stat",
@@ -9391,12 +10155,104 @@
             }
           },
           "gridPos": {
-            "x": 4,
-            "y": 130,
+            "x": 8,
+            "y": 140,
             "w": 4,
             "h": 5
           },
-          "id": 85
+          "id": 94
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 140,
+            "w": 4,
+            "h": 5
+          },
+          "id": 95
         },
         {
           "type": "stat",
@@ -9491,12 +10347,12 @@
             }
           },
           "gridPos": {
-            "x": 8,
-            "y": 130,
+            "x": 16,
+            "y": 140,
             "w": 4,
             "h": 5
           },
-          "id": 86
+          "id": 96
         },
         {
           "type": "stat",
@@ -9512,7 +10368,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -9524,7 +10380,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"glxgears:no-vsync\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -9591,12 +10447,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 130,
+            "x": 20,
+            "y": 140,
             "w": 4,
             "h": 5
           },
-          "id": 87
+          "id": 97
         },
         {
           "type": "stat",
@@ -9691,12 +10547,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 130,
-            "w": 4,
+            "x": 0,
+            "y": 145,
+            "w": 24,
             "h": 5
           },
-          "id": 88
+          "id": 98
         },
         {
           "type": "barchart",
@@ -9870,11 +10726,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 135,
+            "y": 150,
             "w": 8,
             "h": 8
           },
-          "id": 89
+          "id": 99
         },
         {
           "type": "trend",
@@ -10010,11 +10866,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 135,
+            "y": 150,
             "w": 8,
             "h": 8
           },
-          "id": 90
+          "id": 100
         },
         {
           "type": "barchart",
@@ -10184,11 +11040,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 135,
+            "y": 150,
             "w": 8,
             "h": 8
           },
-          "id": 91
+          "id": 101
         },
         {
           "type": "barchart",
@@ -10311,11 +11167,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 143,
+            "y": 158,
             "w": 8,
             "h": 8
           },
-          "id": 92
+          "id": 102
         },
         {
           "type": "barchart",
@@ -10516,11 +11372,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 143,
+            "y": 158,
             "w": 8,
             "h": 8
           },
-          "id": 93
+          "id": 103
         },
         {
           "type": "barchart",
@@ -10690,11 +11546,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 143,
+            "y": 158,
             "w": 8,
             "h": 8
           },
-          "id": 94
+          "id": 104
         },
         {
           "type": "trend",
@@ -10871,20 +11727,20 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 151,
+            "y": 166,
             "w": 8,
             "h": 8
           },
-          "id": 95
+          "id": 105
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 124,
+        "y": 134,
         "w": 24,
         "h": 1
       },
-      "id": 77
+      "id": 85
     },
     {
       "type": "row",
@@ -10985,11 +11841,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 160,
+            "y": 175,
             "w": 4,
             "h": 5
           },
-          "id": 97
+          "id": 107
         },
         {
           "type": "stat",
@@ -11085,11 +11941,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 160,
+            "y": 175,
             "w": 4,
             "h": 5
           },
-          "id": 98
+          "id": 108
         },
         {
           "type": "stat",
@@ -11185,11 +12041,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 160,
+            "y": 175,
             "w": 4,
             "h": 5
           },
-          "id": 99
+          "id": 109
         },
         {
           "type": "stat",
@@ -11285,16 +12141,16 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 160,
+            "y": 175,
             "w": 4,
             "h": 5
           },
-          "id": 100
+          "id": 110
         },
         {
           "type": "stat",
           "title": "Decoded to on screen p99",
-          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11377,16 +12233,16 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 160,
+            "y": 175,
             "w": 4,
             "h": 5
           },
-          "id": 101
+          "id": 111
         },
         {
           "type": "stat",
           "title": "Dropped by the display",
-          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11469,16 +12325,16 @@
           },
           "gridPos": {
             "x": 20,
-            "y": 160,
+            "y": 175,
             "w": 4,
             "h": 5
           },
-          "id": 102
+          "id": 112
         },
         {
           "type": "stat",
           "title": "Judder",
-          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -11561,11 +12417,103 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 165,
+            "y": 180,
             "w": 4,
             "h": 5
           },
-          "id": 103
+          "id": 113
+        },
+        {
+          "type": "stat",
+          "title": "Client decode p99",
+          "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))))))))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", stream=\"clean\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no decoding",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no decoding",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 4,
+            "y": 180,
+            "w": 4,
+            "h": 5
+          },
+          "id": 114
         },
         {
           "type": "stat",
@@ -11660,12 +12608,104 @@
             }
           },
           "gridPos": {
-            "x": 4,
-            "y": 165,
+            "x": 8,
+            "y": 180,
             "w": 4,
             "h": 5
           },
-          "id": 104
+          "id": 115
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 180,
+            "w": 4,
+            "h": 5
+          },
+          "id": 116
         },
         {
           "type": "stat",
@@ -11760,12 +12800,12 @@
             }
           },
           "gridPos": {
-            "x": 8,
-            "y": 165,
+            "x": 16,
+            "y": 180,
             "w": 4,
             "h": 5
           },
-          "id": 105
+          "id": 117
         },
         {
           "type": "stat",
@@ -11781,7 +12821,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -11793,7 +12833,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -11860,12 +12900,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 165,
+            "x": 20,
+            "y": 180,
             "w": 4,
             "h": 5
           },
-          "id": 106
+          "id": 118
         },
         {
           "type": "stat",
@@ -11960,12 +13000,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 165,
-            "w": 4,
+            "x": 0,
+            "y": 185,
+            "w": 24,
             "h": 5
           },
-          "id": 107
+          "id": 119
         },
         {
           "type": "barchart",
@@ -12139,11 +13179,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 170,
+            "y": 190,
             "w": 8,
             "h": 8
           },
-          "id": 108
+          "id": 120
         },
         {
           "type": "trend",
@@ -12279,11 +13319,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 170,
+            "y": 190,
             "w": 8,
             "h": 8
           },
-          "id": 109
+          "id": 121
         },
         {
           "type": "barchart",
@@ -12453,11 +13493,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 170,
+            "y": 190,
             "w": 8,
             "h": 8
           },
-          "id": 110
+          "id": 122
         },
         {
           "type": "barchart",
@@ -12580,11 +13620,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 178,
+            "y": 198,
             "w": 8,
             "h": 8
           },
-          "id": 111
+          "id": 123
         },
         {
           "type": "barchart",
@@ -12785,11 +13825,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 178,
+            "y": 198,
             "w": 8,
             "h": 8
           },
-          "id": 112
+          "id": 124
         },
         {
           "type": "barchart",
@@ -12959,11 +13999,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 178,
+            "y": 198,
             "w": 8,
             "h": 8
           },
-          "id": 113
+          "id": 125
         },
         {
           "type": "trend",
@@ -13140,20 +14180,20 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 186,
+            "y": 206,
             "w": 8,
             "h": 8
           },
-          "id": 114
+          "id": 126
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 159,
+        "y": 174,
         "w": 24,
         "h": 1
       },
-      "id": 96
+      "id": 106
     },
     {
       "type": "row",
@@ -13254,11 +14294,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 195,
+            "y": 215,
             "w": 4,
             "h": 5
           },
-          "id": 116
+          "id": 128
         },
         {
           "type": "stat",
@@ -13354,11 +14394,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 195,
+            "y": 215,
             "w": 4,
             "h": 5
           },
-          "id": 117
+          "id": 129
         },
         {
           "type": "stat",
@@ -13454,11 +14494,103 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 195,
+            "y": 215,
             "w": 4,
             "h": 5
           },
-          "id": 118
+          "id": 130
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 215,
+            "w": 4,
+            "h": 5
+          },
+          "id": 131
         },
         {
           "type": "stat",
@@ -13553,12 +14685,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 195,
+            "x": 16,
+            "y": 215,
             "w": 4,
             "h": 5
           },
-          "id": 119
+          "id": 132
         },
         {
           "type": "stat",
@@ -13574,7 +14706,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"hdrneon-cycle\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -13586,7 +14718,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"hdrneon-cycle\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -13653,12 +14785,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 195,
+            "x": 20,
+            "y": 215,
             "w": 4,
             "h": 5
           },
-          "id": 120
+          "id": 133
         },
         {
           "type": "barchart",
@@ -13828,20 +14960,20 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 200,
+            "y": 220,
             "w": 8,
             "h": 8
           },
-          "id": 121
+          "id": 134
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 194,
+        "y": 214,
         "w": 24,
         "h": 1
       },
-      "id": 115
+      "id": 127
     },
     {
       "type": "row",
@@ -13942,11 +15074,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 209,
+            "y": 229,
             "w": 8,
             "h": 5
           },
-          "id": 123
+          "id": 136
         },
         {
           "type": "stat",
@@ -14042,11 +15174,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 209,
+            "y": 229,
             "w": 8,
             "h": 5
           },
-          "id": 124
+          "id": 137
         },
         {
           "type": "stat",
@@ -14142,11 +15274,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 209,
+            "y": 229,
             "w": 8,
             "h": 5
           },
-          "id": 125
+          "id": 138
         },
         {
           "type": "barchart",
@@ -14319,11 +15451,11 @@
           "maxPerRow": 3,
           "gridPos": {
             "x": 0,
-            "y": 214,
+            "y": 234,
             "w": 8,
             "h": 8
           },
-          "id": 126
+          "id": 139
         },
         {
           "type": "barchart",
@@ -14446,20 +15578,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 214,
+            "y": 234,
             "w": 8,
             "h": 8
           },
-          "id": 127
+          "id": 140
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 208,
+        "y": 228,
         "w": 24,
         "h": 1
       },
-      "id": 122
+      "id": 135
     },
     {
       "type": "row",
@@ -14560,11 +15692,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 223,
+            "y": 243,
             "w": 8,
             "h": 5
           },
-          "id": 129
+          "id": 142
         },
         {
           "type": "stat",
@@ -14660,11 +15792,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 223,
+            "y": 243,
             "w": 8,
             "h": 5
           },
-          "id": 130
+          "id": 143
         },
         {
           "type": "stat",
@@ -14760,11 +15892,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 223,
+            "y": 243,
             "w": 8,
             "h": 5
           },
-          "id": 131
+          "id": 144
         },
         {
           "type": "barchart",
@@ -14937,11 +16069,11 @@
           "maxPerRow": 3,
           "gridPos": {
             "x": 0,
-            "y": 228,
+            "y": 248,
             "w": 8,
             "h": 8
           },
-          "id": 132
+          "id": 145
         },
         {
           "type": "barchart",
@@ -15064,20 +16196,20 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 228,
+            "y": 248,
             "w": 8,
             "h": 8
           },
-          "id": 133
+          "id": 146
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 222,
+        "y": 242,
         "w": 24,
         "h": 1
       },
-      "id": 128
+      "id": 141
     },
     {
       "type": "row",
@@ -15178,11 +16310,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 237,
+            "y": 257,
             "w": 4,
             "h": 5
           },
-          "id": 135
+          "id": 148
         },
         {
           "type": "stat",
@@ -15278,11 +16410,11 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 237,
+            "y": 257,
             "w": 4,
             "h": 5
           },
-          "id": 136
+          "id": 149
         },
         {
           "type": "stat",
@@ -15378,11 +16510,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 237,
+            "y": 257,
             "w": 4,
             "h": 5
           },
-          "id": 137
+          "id": 150
         },
         {
           "type": "stat",
@@ -15478,11 +16610,11 @@
           },
           "gridPos": {
             "x": 12,
-            "y": 237,
+            "y": 257,
             "w": 4,
             "h": 5
           },
-          "id": 138
+          "id": 151
         },
         {
           "type": "stat",
@@ -15578,16 +16710,16 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 237,
+            "y": 257,
             "w": 4,
             "h": 5
           },
-          "id": 139
+          "id": 152
         },
         {
           "type": "stat",
           "title": "Decoded to on screen p99",
-          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+          "description": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -15670,16 +16802,16 @@
           },
           "gridPos": {
             "x": 20,
-            "y": 237,
+            "y": 257,
             "w": 4,
             "h": 5
           },
-          "id": 140
+          "id": 153
         },
         {
           "type": "stat",
           "title": "Dropped by the display",
-          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Decoded frames a V-Sync display never showed, in percent, on clean streams: frames that arrived bunched, so a newer one replaced them before their refresh.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -15762,16 +16894,16 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 242,
+            "y": 262,
             "w": 4,
             "h": 5
           },
-          "id": 141
+          "id": 154
         },
         {
           "type": "stat",
           "title": "Judder",
-          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: Not judged yet: thresholds come once repeat runs measure how much it varies.",
+          "description": "Frames a V-Sync display showed a refresh or more later than the stream's rate needs (the frame before held on screen too long), in percent of the frames shown, on clean streams.\n\nNot judged yet: The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -15854,11 +16986,103 @@
           },
           "gridPos": {
             "x": 4,
-            "y": 242,
+            "y": 262,
             "w": 4,
             "h": 5
           },
-          "id": 142
+          "id": 155
+        },
+        {
+          "type": "stat",
+          "title": "Client decode p99",
+          "description": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.\n\nNot judged yet: The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))))))))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", stream=\"clean\"}[$__range]))))))))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: frames",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "no decoding",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "no decoding",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 262,
+            "w": 4,
+            "h": 5
+          },
+          "id": 156
         },
         {
           "type": "stat",
@@ -15953,12 +17177,104 @@
             }
           },
           "gridPos": {
-            "x": 8,
-            "y": 242,
+            "x": 12,
+            "y": 262,
             "w": 4,
             "h": 5
           },
-          "id": 143
+          "id": 157
+        },
+        {
+          "type": "stat",
+          "title": "Keyframes the client caused",
+          "description": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.\n\nNot judged yet: The client's: none on a client that keeps up.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))",
+              "legendFormat": "${a_commit} \u00b7 A",
+              "refId": "A",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "legendFormat": "${b_commit} \u00b7 B",
+              "refId": "B",
+              "format": "time_series",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              },
+              "noValue": "not measured",
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "text": "not measured",
+                      "color": "#5a5f66",
+                      "index": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "value_and_name",
+            "wideLayout": true,
+            "orientation": "horizontal",
+            "text": {
+              "titleSize": 13,
+              "valueSize": 24
+            }
+          },
+          "gridPos": {
+            "x": 16,
+            "y": 262,
+            "w": 4,
+            "h": 5
+          },
+          "id": 158
         },
         {
           "type": "stat",
@@ -16053,12 +17369,12 @@
             }
           },
           "gridPos": {
-            "x": 12,
-            "y": 242,
+            "x": 20,
+            "y": 262,
             "w": 4,
             "h": 5
           },
-          "id": 144
+          "id": 159
         },
         {
           "type": "stat",
@@ -16074,7 +17390,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range])))",
+              "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run\", side=\"$side\", codec=~\"$codec\", workload=\"gravitymark\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
               "legendFormat": "${a_commit} \u00b7 A",
               "refId": "A",
               "format": "time_series",
@@ -16086,7 +17402,7 @@
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range])))) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
+              "expr": "(100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\"}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{run=\"$run_b\", side=\"$side_b\", codec=~\"$codec\", workload=\"gravitymark\", recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)) and on () (label_replace(vector(1), \"r\", \"$run/$side\", \"\", \"\") unless on (r) label_replace(vector(1), \"r\", \"$run_b/$side_b\", \"\", \"\"))",
               "legendFormat": "${b_commit} \u00b7 B",
               "refId": "B",
               "format": "time_series",
@@ -16153,12 +17469,12 @@
             }
           },
           "gridPos": {
-            "x": 16,
-            "y": 242,
-            "w": 4,
+            "x": 0,
+            "y": 267,
+            "w": 24,
             "h": 5
           },
-          "id": 145
+          "id": 160
         },
         {
           "type": "barchart",
@@ -16332,11 +17648,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 247,
+            "y": 272,
             "w": 8,
             "h": 8
           },
-          "id": 146
+          "id": 161
         },
         {
           "type": "trend",
@@ -16472,11 +17788,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 247,
+            "y": 272,
             "w": 8,
             "h": 8
           },
-          "id": 147
+          "id": 162
         },
         {
           "type": "barchart",
@@ -16646,11 +17962,11 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 247,
+            "y": 272,
             "w": 8,
             "h": 8
           },
-          "id": 148
+          "id": 163
         },
         {
           "type": "barchart",
@@ -16773,11 +18089,11 @@
           },
           "gridPos": {
             "x": 0,
-            "y": 255,
+            "y": 280,
             "w": 8,
             "h": 8
           },
-          "id": 149
+          "id": 164
         },
         {
           "type": "barchart",
@@ -16978,11 +18294,11 @@
           },
           "gridPos": {
             "x": 8,
-            "y": 255,
+            "y": 280,
             "w": 8,
             "h": 8
           },
-          "id": 150
+          "id": 165
         },
         {
           "type": "barchart",
@@ -17152,20 +18468,20 @@
           },
           "gridPos": {
             "x": 16,
-            "y": 255,
+            "y": 280,
             "w": 8,
             "h": 8
           },
-          "id": 151
+          "id": 166
         }
       ],
       "gridPos": {
         "x": 0,
-        "y": 236,
+        "y": 256,
         "w": 24,
         "h": 1
       },
-      "id": 134
+      "id": 147
     },
     {
       "type": "row",
@@ -17174,11 +18490,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 263,
+        "y": 288,
         "w": 24,
         "h": 1
       },
-      "id": 152
+      "id": 167
     },
     {
       "type": "stat",
@@ -17232,11 +18548,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 264,
+        "y": 289,
         "w": 8,
         "h": 4
       },
-      "id": 153
+      "id": 168
     },
     {
       "type": "stat",
@@ -17290,11 +18606,11 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 264,
+        "y": 289,
         "w": 8,
         "h": 4
       },
-      "id": 154
+      "id": 169
     },
     {
       "type": "stat",
@@ -17348,11 +18664,11 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 264,
+        "y": 289,
         "w": 8,
         "h": 4
       },
-      "id": 155
+      "id": 170
     },
     {
       "type": "row",
@@ -17361,11 +18677,11 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 268,
+        "y": 293,
         "w": 24,
         "h": 1
       },
-      "id": 156
+      "id": 171
     },
     {
       "type": "table",
@@ -17398,11 +18714,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 269,
+        "y": 294,
         "w": 12,
         "h": 12
       },
-      "id": 157
+      "id": 172
     },
     {
       "type": "table",
@@ -17441,11 +18757,11 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 269,
+        "y": 294,
         "w": 12,
         "h": 12
       },
-      "id": 158
+      "id": 173
     },
     {
       "type": "table",
@@ -17484,11 +18800,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 281,
+        "y": 306,
         "w": 24,
         "h": 12
       },
-      "id": 159
+      "id": 174
     }
   ],
   "links": [

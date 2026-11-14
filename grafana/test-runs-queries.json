@@ -43,6 +43,18 @@
       "decimals": 2
     },
     {
+      "key": "client_decode_p99",
+      "expr": "histogram_quantile(0.99, sum(last_over_time(moonshine_client_decode_duration_seconds{{sel}, stream=\"clean\"}[$__range]))) * scalar(avg((1 / histogram_quantile(0.5, sum by (stream_key) ((last_over_time(moonshine_frame_interval_seconds{}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream=\"clean\"}[$__range]))))))))",
+      "empty": "no decoding",
+      "decimals": 2
+    },
+    {
+      "key": "client_keyframes",
+      "expr": "sum(last_over_time(moonshine_client_idr_requests_total{{sel}, cause=~\"client_.*\"}[$__range])) or 0 * sum(last_over_time(moonshine_client_frames_total{{sel}}[$__range]))",
+      "empty": "not measured",
+      "decimals": 0
+    },
+    {
       "key": "server_p99_ms",
       "expr": "1000 * histogram_quantile(0.99, sum((last_over_time(moonshine_frame_duration_seconds{frame_kind=~\"delta|key\"}[$__range]) and on (stream_key) group by (stream_key) (last_over_time(moonshine_client_frames_total{{sel}, stream!=\"loss\"}[$__range])))))",
       "empty": "not measured",
@@ -56,7 +68,7 @@
     },
     {
       "key": "recovered_without_keyframe",
-      "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{{sel}, recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{{sel}}[$__range])))",
+      "expr": "100 * (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{{sel}, recovered_by=\"recovery_frame\"}[$__range]))) or vector(0)) / (histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{{sel}}[$__range]))) - clamp_max(sum(last_over_time(moonshine_client_idr_requests_total{{sel}, cause=~\"client_.*\"}[$__range])) or vector(0), scalar(histogram_count(sum(last_over_time(moonshine_client_freeze_duration_seconds{{sel}, recovered_by=\"keyframe\"}[$__range]))) or vector(0))) > 0)",
       "empty": "no loss test",
       "decimals": 1
     },

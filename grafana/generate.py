@@ -64,6 +64,8 @@ CLEAN = ', stream="clean"'
 UNDROPPED = ', stream=~"clean|click"'
 HIGH_LOAD = CLEAN + ', load="high"'
 VSYNC = ', mode="vsync"'
+# Keyframe requests the client made because of itself.
+CLIENT_CAUSED = ', cause=~"client_.*"'
 
 
 def sent_fps(sel):
@@ -125,9 +127,14 @@ SCORED = {
     # Not the loss streams: their extra keyframes would make the tail the keyframes' encode time.
     "server_p99_ms": lambda sel: f'1000 * histogram_quantile(0.99, sum({host("moonshine_frame_duration_seconds", CAPTURED, sel + ", stream!=\"loss\"")}))',
     "freeze_p95": lambda sel: f'histogram_quantile(0.95, sum({whole("moonshine_client_freeze_duration_seconds", sel)})) * {per_side_fps(sel)}',
+    # Freezes a keyframe the client asked for itself ended (its decode queue overflowed, its decoder failed) aren't
+    # Moonshine's to recover: they leave the count, up to as many as ended with a keyframe.
     "recovered_without_keyframe": lambda sel: (
         f'100 * (histogram_count(sum({whole("moonshine_client_freeze_duration_seconds", sel + ", recovered_by=\"recovery_frame\"")})) or vector(0))'
-        f' / histogram_count(sum({whole("moonshine_client_freeze_duration_seconds", sel)}))'),
+        f' / (histogram_count(sum({whole("moonshine_client_freeze_duration_seconds", sel)}))'
+        f' - clamp_max(sum({whole("moonshine_client_idr_requests_total", sel + CLIENT_CAUSED)}) or vector(0),'
+        f' scalar(histogram_count(sum({whole("moonshine_client_freeze_duration_seconds", sel + ", recovered_by=\"keyframe\"")})) or vector(0)))'
+        f' > 0)'),
     "click_median": lambda sel: f'histogram_quantile(0.5, sum({whole("moonshine_client_click_duration_seconds", sel)})) * {per_side_fps(sel)}',
     # Both from Moonshine, after watch's warmup (which holds each stream's opening keyframe), on the clean streams
     # whose content switched and that lost nothing: a keyframe the client asked for to recover isn't a switch's.
@@ -144,6 +151,12 @@ SCORED = {
         f'100 * (sum({whole("moonshine_client_display_judder_total", sel + CLEAN + VSYNC)})'
         f' or 0 * sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC)}))'
         f' / sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC + ", shown=\"true\"")})'),
+    # The client machine's own: how slowly it decodes (frame intervals at the rate Moonshine sent), and keyframes it
+    # asked for because of itself.
+    "client_decode_p99": lambda sel: f'histogram_quantile(0.99, sum({whole("moonshine_client_decode_duration_seconds", sel + CLEAN)})) * {per_side_fps(sel + CLEAN)}',
+    "client_keyframes": lambda sel: (
+        f'sum({whole("moonshine_client_idr_requests_total", sel + CLIENT_CAUSED)})'
+        f' or 0 * sum({whole("moonshine_client_frames_total", sel)})'),
     "load_fps": lambda sel: delivered(sel + HIGH_LOAD),
     "peak_bitrate": lambda sel: (
         f'100 * max({whole("moonshine_client_bitrate_peak_bit_per_second", sel + CLEAN)})'
@@ -174,7 +187,7 @@ DECIMALS = {"keyframes_per_switch": 2, "display_dropped": 2, "display_judder": 2
 NO_VALUE = {"freeze_p95": "no loss test", "recovered_without_keyframe": "no loss test", "click_median": "no click test",
             "keyframes_per_switch": "no HDR switch test", "load_fps": "no GPU-load test",
             "display_latency_p99": "no display model", "display_dropped": "no display model",
-            "display_judder": "no display model"}
+            "display_judder": "no display model", "client_decode_p99": "no decoding"}
 
 
 def bands(m):

@@ -74,7 +74,8 @@
       "better": "lower",
       "target": null,
       "acceptable": null,
-      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one."
+      "basis": "The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one.",
+      "party": "client"
     },
     "display_dropped": {
       "measure": "smoothness",
@@ -84,7 +85,8 @@
       "better": "lower",
       "target": null,
       "acceptable": null,
-      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies."
+      "basis": "The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
+      "party": "client"
     },
     "display_judder": {
       "measure": "smoothness",
@@ -94,7 +96,30 @@
       "better": "lower",
       "target": null,
       "acceptable": null,
-      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies."
+      "basis": "The client's: its display, not Moonshine's doing. Not judged against a target; the Change column compares it with the baseline.",
+      "party": "client"
+    },
+    "client_decode_p99": {
+      "measure": "smoothness",
+      "party": "client",
+      "label": "client decode p99",
+      "what": "The 99th percentile of the time the client took to decode a frame, in frame intervals, on clean streams. Over 1, the client decodes slower than the frames come: it's the bottleneck, and freezes and keyframes it asks for are its doing.",
+      "unit": "frame intervals",
+      "better": "lower",
+      "target": null,
+      "acceptable": null,
+      "basis": "The client's: its decoder, not Moonshine's doing. Over one frame interval the client can't keep up."
+    },
+    "client_keyframes": {
+      "measure": "loss_recovery",
+      "party": "client",
+      "label": "keyframes the client caused",
+      "what": "Keyframes the client asked for because of itself, on every stream: its decode queue overflowed (the decoder couldn't keep up) or its decoder failed a frame. Not counted against Moonshine's RFI recovery rate.",
+      "unit": "",
+      "better": "lower",
+      "target": null,
+      "acceptable": null,
+      "basis": "The client's: none on a client that keeps up."
     },
     "server_p99_ms": {
       "measure": "server_latency",
