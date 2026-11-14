@@ -34,6 +34,11 @@
 #   --baseline-moonshine REF, --baseline-pixelforge REF, --baseline-ferriscope REF
 #                       compare against REF instead of hgaiser's default branch (implies --baseline)
 #   --iterations N      timed streams per codec and build, with --baseline (5)
+#   --fresh-baseline    stream the baseline again even when one is retained (see Retained baselines)
+#   --calibrate N       instead of testing, stream the baseline's battery N times (2 or more) and retain it with how
+#                       much each report card metric varied between the repeats; later --baseline runs with the same
+#                       options reuse it and say whether the test build differs by more than that. Pass the refs and
+#                       options you'll test with, so the baseline is the one those runs compare against
 #   --no-traces         don't record the streams' telemetry (moonshine-otel's OTLP metrics and traces: a trace
 #                       per frame with Moonshine's and the client's spans), so summary.md has only the checks
 #   --chaos OPTIONS...  gamestream-test-client options for the second stream of each codec, instead of dropping
@@ -112,7 +117,7 @@ usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; /^set -euo/d'; }
 die() { echo "moonshine-test-headless: $*" >&2; exit 2; }
 say() { printf '\n==> %s\n' "$*"; }
 
-seconds=20 codecs="" stream=1 serve=0 strict=0 log_filter=info baseline=0 iterations=5 traces=1 refs=() base_refs=() chaos=()
+seconds=20 codecs="" stream=1 serve=0 strict=0 log_filter=info baseline=0 fresh_baseline=0 calibrate=0 iterations=5 traces=1 refs=() base_refs=() chaos=()
 apps=() tier="" app_command="" accept_gravitymark=0 hdr=0 battery=/usr/share/moonshine-test-headless/battery.json
 targets=/usr/share/moonshine-test-headless/targets.json
 mode_args=() default_kbps="" max_packet_size="" decode=hw remote="" config_test=() config_base=()
@@ -133,6 +138,9 @@ while [ $# -gt 0 ]; do
 	--baseline-moonshine | --baseline-pixelforge | --baseline-ferriscope)
 		base_refs+=("${1#--baseline-}=${2:?$1 needs a ref}"); baseline=1; shift 2 ;;
 	--iterations) iterations=${2:?--iterations needs a number}; shift 2 ;;
+	--fresh-baseline) fresh_baseline=1; shift ;;
+	--calibrate) calibrate=${2:?--calibrate needs a number}; [[ $calibrate =~ ^[0-9]+$ ]] && [ "$calibrate" -ge 2 ] ||
+		die "--calibrate needs a number of repeats, 2 or more"; baseline=1; shift 2 ;;
 	--traces) traces=1; shift ;;
 	--no-traces) traces=0; shift ;;
 	--chaos) shift; [ $# -gt 0 ] || die "--chaos needs client options after it"; chaos=("$@"); break ;;
@@ -159,7 +167,7 @@ while [ $# -gt 0 ]; do
 	*) die "what's '$1'? Say which project, e.g. --pixelforge $1 (see --help)" ;;
 	esac
 done
-[ ${#refs[@]} -gt 0 ] || [ $serve = 1 ] || { usage; exit 2; }
+[ ${#refs[@]} -gt 0 ] || [ $serve = 1 ] || [ "$calibrate" -gt 0 ] || { usage; exit 2; }
 [ $serve = 0 ] || baseline=0
 
 # --- What to test ----------------------------------------------------------------------------------------------
@@ -287,6 +295,8 @@ checks_md() {
 # run_name: the mode's run on its metrics, once run_info has named it.
 run_name=""
 mw="" mh="" mfps="" mkbps="" mkbps_from="" mlabel="" mout=$out mlogs=$logs mwork=/work mode_open=0 modes_done=0
+# The mode's summary's own options: a retained baseline, noise, a calibration's sides.
+summary_args=()
 modes=()
 
 # finish_mode: the mode's summary.md: moonshine-otel summary reads the mode's run back from the
@@ -300,7 +310,7 @@ finish_mode() {
 	if [ -n "${otel:-}" ] && [ -n "$run_name" ] &&
 		"$otel" summary "$logs/otlp" --run "$run_name" --notes "$mwork/checks.md" --out "$mout/summary.md" \
 			--queries /usr/share/moonshine-test-headless/test-runs-queries.json --targets "$targets" \
-			--prometheus /usr/local/bin/prometheus > "$mlogs/summary.log" 2>&1; then
+			--prometheus /usr/local/bin/prometheus "${summary_args[@]}" > "$mlogs/summary.log" 2>&1; then
 		:
 	else
 		{
@@ -769,7 +779,8 @@ gpu_tests() {
 	fi
 }
 
-if [ $serve = 0 ]; then
+# A calibration only streams the baseline: the GPU tests are the test build's.
+if [ $serve = 0 ] && [ "$calibrate" = 0 ]; then
 	[ -z "${dir[test/pixelforge]:-}" ] || gpu_tests pixelforge --no-fail-fast -- --ignored --test-threads=1
 	[ -z "${dir[test/ferriscope]:-}" ] || gpu_tests ferriscope -p ferriscope --no-fail-fast -- --ignored --test-threads=1
 fi
@@ -830,7 +841,7 @@ build() {
 	row "Build $what_" ok ""
 }
 
-build test || exit 1
+[ "$calibrate" -gt 0 ] || build test || exit 1
 
 # --- Serving ---------------------------------------------------------------------------------------------------
 
@@ -1141,6 +1152,7 @@ run_info() {
 	[ "$client_where" = loopback ] || { [[ $host_addr =~ ^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\. ]] && route=Tailscale || route=LAN; }
 	[ -z "$client_rtt" ] || route+=", ${client_rtt} ms round trip"
 	[ -z "${commit[base/moonshine]:-}" ] || extra+=(--label "baseline=${code_id[base]}")
+	[ -z "${retained_run:-}" ] || extra+=(--label "baseline_run=$retained_run")
 	[ -z "${tier:-}" ] || extra+=(--label "tier=$tier")
 	if [ ${#chaos[@]} -gt 0 ]; then extra+=(--label "chaos=${chaos[*]}"); else extra+=(--label "chaos=drop one frame in 120"); fi
 	info --label role=run --label "code=${code_id[test]}" --label "ref=${code_ref[test]}" --label "commit=${commit[test/moonshine]}" \
@@ -1167,7 +1179,7 @@ traced() {
 	[ -n "$run_name" ] || run_info
 	# The side is the Moonshine streaming now: a global `side` is whatever an earlier loop left.
 	local on=${server_side:-test}
-	labels+=(--label "workload=$2" --label "stream=$kind" --label "run=$run_name" --label "side=$on"
+	labels+=(--label "workload=$2" --label "stream=$kind" --label "run=$run_name" --label "side=${side_label:-$on}"
 		--label "code=${code_id[$on]}" --label "ref=${code_ref[$on]}" --label "commit=${commit[$on/moonshine]:0:7}")
 	[ -z "${wl_load[$2]:-}" ] || labels+=(--label "load=${wl_load[$2]}")
 	key=$(cat /proc/sys/kernel/random/uuid)
@@ -1314,6 +1326,12 @@ file() { echo "${1//[^A-Za-z0-9.-]/_}"; }
 battery_streams() {
 	local side=$1 w whdr range codec run label name before f args status sj sf json gb sfx="" ldir=$mlogs srv=$mwork/server
 	[ "$side" = test ] || { sfx=", baseline" ldir=$mlogs/baseline srv=$mwork/server-base; }
+	# A calibration's repeats: the first is the baseline (side=base), the others side=base-N in logs/baseline-N.
+	if [ -n "${side_label:-}" ] && [ "$side_label" != base ]; then
+		sfx=", baseline ${side_label#base-}/$calibrate" ldir=$mlogs/baseline-${side_label#base-}
+	elif [ -n "${side_label:-}" ]; then
+		sfx=", baseline 1/$calibrate"
+	fi
 	start_server "$side" "$srv" || return 1
 	supported=$(sed -n 's:.*<ServerCodecModeSupport>\([0-9]*\)</ServerCodecModeSupport>.*:\1:p' <<< "$serverinfo")
 	supported=${supported:-0}
@@ -1391,14 +1409,79 @@ compare_wls=()
 for w in "${workloads[@]}"; do [ "${wl_baseline[$w]}" = 0 ] || compare_wls+=("$w"); done
 timed() { jq -e 'index("server_latency") or index("smoothness")' <<< "${wl_measures[$1]}" > /dev/null; }
 
-compare=0 speed=1
+# --- Retained baselines ----------------------------------------------------------------------------------------
+
+# A baseline's streams are kept in the cache volume, keyed by everything that changes what they'd measure, and a later
+# --baseline run with the same key reuses them instead of building and streaming the baseline again. --calibrate
+# keeps how much each metric varied across repeats beside it.
+baselines=/cache/baselines
+
+# baseline_key: the mode's key, as JSON: the baseline's code and config, both machines, the route, the mode, the
+# battery and the tools.
+baseline_key() {
+	local k refs
+	refs=$(for k in "${!commit[@]}"; do [[ $k != base/* ]] || printf '%s\t%s\n' "${k#base/}" "${commit[$k]}"; done |
+		jq -Rn '[inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries')
+	jq -nS --argjson code "$refs" --arg config "${config_base[*]}" \
+		--arg host_gpu "$gpu" --arg host_driver "$driver" --arg host_kernel "$(jq -r '.kernel // ""' <<< "$host_machine")" \
+		--arg client "$client_where" --arg client_machine "$(jq -r '[.hostname, .model, .kernel] | join(", ")' <<< "$client_machine")" \
+		--arg client_gpu "$(jq -r '"\(.name // "software") \(.va_driver // "")"' <<< "$dec_gpu")" \
+		--arg mode "$mlabel $mkbps" --arg seconds "$seconds" --arg iterations "$iterations" \
+		--arg battery "$(jq -cS --arg t "$tier" '{tier: $t, workloads}' "$battery")" --arg apps "${apps[*]} $app_command" \
+		--arg chaos "${chaos[*]}" --arg hdr "$hdr" --arg packet "$max_packet_size" --arg codecs "$codecs" \
+		--arg harness "$harness_version" --arg client_version "$(client_version_used)" '$ARGS.named + {code: $code}'
+}
+
+# retained_dir: where the mode's baseline is (or would be) kept.
+retained_dir() { echo "$baselines/$(baseline_key | sha256sum | cut -c1-16)"; }
+
+# retainable: a baseline that's the same code every time: not a local checkout (uncommitted changes), and recorded.
+retainable() {
+	local k
+	[ $traces = 1 ] && [ -n "${otel:-}" ] || return 1
+	for k in "${!kind[@]}"; do [[ $k != base/* ]] || [ "${kind[$k]}" != local ] || return 1; done
+}
+
+# all_retained: every mode has a kept baseline.
+all_retained() {
+	local m
+	for m in "${modes[@]}"; do mode_parts "$m"; [ -s "$(retained_dir)/meta.json" ] || return 1; done
+}
+
+# fails: how many checks have failed so far.
+fails() { local r n=0; for r in "${rows[@]}"; do [[ $r != *"|FAIL|"* ]] || n=$((n + 1)); done; echo $n; }
+
+# store_baseline: keep the mode's baseline: the run's telemetry (its baseline streams are side=base, or with
+# --calibrate base-N too), the baseline's benchmark results, its key and where it came from, and its noise (this
+# calibration's, or a kept one's for the same key). The 10 latest are kept.
+store_baseline() {
+	local d new
+	d=$(retained_dir) new=$(retained_dir).new
+	rm -rf "$new" && mkdir -p "$new" || return 0
+	baseline_key > "$new/key.json"
+	cp -r "$logs/otlp" "$new/otlp"
+	[ ! -d "$mwork/bench/base" ] || cp -r "$mwork/bench/base" "$new/bench"
+	if [ -s "$mwork/noise.json" ]; then cp "$mwork/noise.json" "$new/"; elif [ -s "$d/noise.json" ]; then cp "$d/noise.json" "$new/"; fi
+	jq -n --arg run "$run_name" --arg made "$(date -u +%FT%TZ)" --arg code "${code_id[base]}" --arg from "$(basename "$out")" \
+		--argjson repeats "$(jq '.sides | length' "$new/noise.json" 2>/dev/null || echo 1)" \
+		'{run: $run, made: $made, baseline: $code, from: $from, repeats: $repeats}' > "$new/meta.json"
+	rm -rf "$d" && mv "$new" "$d"
+	# shellcheck disable=SC2012 # the cache's own directory names: hex
+	ls -dt "$baselines"/*/ 2>/dev/null | tail -n +11 | xargs -r rm -rf
+}
+
+compare=0 speed=1 reuse=0
 if [ $baseline = 1 ] && [ ${#compare_wls[@]} -gt 0 ]; then
 	compare=1
 	if [ -z "$watcher" ]; then
 		speed=0
 		row "Speed vs baseline" skipped "the comparison needs the statistics socket in the Moonshine under test"
 	fi
-	build base || compare=0
+	if [ $fresh_baseline = 0 ] && [ "$calibrate" = 0 ] && retainable && all_retained; then
+		reuse=1
+	else
+		build base || compare=0
+	fi
 	if [ $compare = 1 ] && [ $speed = 1 ] && ! has_socket base; then
 		speed=0
 		row "Speed vs baseline" skipped "baseline Moonshine ${label[base/moonshine]} has no statistics socket; pick one that does with --baseline-moonshine REF"
@@ -1481,15 +1564,74 @@ for m in "${modes[@]}"; do
 		say "Mode $(mode_text)"
 	fi
 	mkdir -p "$mlogs" "$mwork"
-	rows=("${shared_rows[@]}") noted=() run_name=""
+	rows=("${shared_rows[@]}") noted=() run_name="" summary_args=()
 	mode_open=1
-	battery_streams test || true
-	if [ $compare = 1 ]; then
-		mkdir -p "$mlogs/bench"
-		battery_streams base || true
-		{ bench_streams test && bench_streams base && compare_builds; } || true
+	retained=""
+	[ $compare = 0 ] || ! retainable || retained=$(retained_dir)
+	if [ "$calibrate" -gt 0 ]; then
+		# The baseline's battery, repeated; the first repeat is the baseline later runs reuse.
+		if [ $compare = 1 ]; then
+			mkdir -p "$mlogs/bench"
+			before=$(fails)
+			for i in $(seq "$calibrate"); do
+				side_label=base
+				[ "$i" = 1 ] || side_label=base-$i
+				summary_args+=(--side "$side_label")
+				battery_streams base || true
+			done
+			side_label=""
+			bench_streams base || true
+			summary_args+=(--noise-out "$mwork/noise.json")
+			finish_mode
+			if [ -n "$retained" ] && [ "$(fails)" = "$before" ] && [ -s "$mwork/noise.json" ]; then
+				store_baseline
+				row "Calibration" ok "retained, with how much each metric varied over $calibrate repeats; --baseline runs with these options reuse it"
+			else
+				row "Calibration" FAIL "not retained: $( [ -n "$retained" ] && echo "a baseline stream failed" || echo "a local checkout or no telemetry")"
+			fi
+			# The checks after the summary's: write the summary again with the calibration's row.
+			summary_args=("${summary_args[@]:0:${#summary_args[@]}-2}")
+			finish_mode
+		else
+			finish_mode
+		fi
+		continue
 	fi
-	finish_mode
+	# The noise travels in the results too, so a summary made again from them has it.
+	if [ -n "$retained" ] && [ -s "$retained/noise.json" ]; then
+		summary_args+=(--noise "$retained/noise.json")
+		cp "$retained/noise.json" "$mout/noise.json"
+	fi
+	# A reused baseline's run, named on this run's facts (baseline_run): the summary finds its streams by it.
+	retained_run=""
+	[ $reuse = 0 ] || retained_run=$(jq -r .run "$retained/meta.json")
+	battery_streams test || true
+	if [ $reuse = 1 ]; then
+		row "Baseline" ok "$(jq -r '"\(.baseline), retained from \(.from) (\(.made))"
+			+ (if .repeats > 1 then ", with noise from \(.repeats) repeats" else "" end)' "$retained/meta.json"); --fresh-baseline streams it again"
+		mkdir -p "$mlogs/bench" "$mwork/bench"
+		[ ! -d "$retained/bench" ] || cp -r "$retained/bench" "$mwork/bench/base"
+		{ bench_streams test && compare_builds; } || true
+		# The bundle carries the baseline it's compared with: the summary, the board and anyone opening it find it there.
+		mkdir -p "$logs/otlp" && cp -r --update=none "$retained/otlp/." "$logs/otlp/" 2>/dev/null || true
+		finish_mode
+	elif [ $compare = 1 ]; then
+		mkdir -p "$mlogs/bench"
+		# Only the baseline's own failures (its streams, its benchmarks) stop it being kept.
+		before=$(fails)
+		battery_streams base || true
+		base_fails=$(( $(fails) - before ))
+		if bench_streams test; then
+			before=$(fails)
+			bench_streams base || true
+			base_fails=$(( base_fails + $(fails) - before ))
+			compare_builds || true
+		fi
+		finish_mode
+		[ -z "$retained" ] || [ "$base_fails" != 0 ] || store_baseline
+	else
+		finish_mode
+	fi
 done
 
 exit $((failed & strict))

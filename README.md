@@ -150,7 +150,10 @@ Put them after `--`.
   - `someone@my-branch`: a branch, tag or commit of someone's fork
   - a GitHub link
   - `./pixelforge`: your checkout in the current folder, uncommitted changes included
-- `--baseline`: compare against hgaiser's default branches
+- `--baseline`: compare against hgaiser's default branches. The baseline is kept, and the next run with the same
+  options and machines reuses it instead of building and streaming it again (`--fresh-baseline` to redo it)
+- `--calibrate 3`: stream the baseline three times instead of testing, so later `--baseline` runs can say which
+  changes are bigger than run-to-run noise. Pass the same refs and options you'll test with
 - `--tier quick` or `--tier full`: fewer or more workloads
 - `--iterations N`: timed streams per codec and build with `--baseline` (default 5)
 - `--mode 4k120`: stream resolution and frame rate (default `1080p60`)
