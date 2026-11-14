@@ -66,15 +66,15 @@
         }
       ]
     },
-    "display_latency_median": {
+    "display_latency_p99": {
       "measure": "smoothness",
-      "label": "decoded to on screen",
-      "what": "The median time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another).",
+      "label": "decoded to on screen p99",
+      "what": "The 99th percentile of the time from the client decoding a frame to a display showing it, on clean streams, in the client's model of moonlight-qt presenting with V-Sync (a display at the stream's rate unless the client was given another). The model times its refreshes from where frames typically arrive, so the median is half a refresh by construction; the tail is frames queued behind late ones.",
       "unit": "ms",
       "better": "lower",
       "target": null,
       "acceptable": null,
-      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor (frames arriving evenly); more means frames queued behind late ones."
+      "basis": "Not judged yet: thresholds come once repeat runs measure how much it varies. Half a refresh is the floor; a refresh and a half or more means frames regularly waited behind a late one."
     },
     "display_dropped": {
       "measure": "smoothness",

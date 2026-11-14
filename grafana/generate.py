@@ -135,7 +135,7 @@ SCORED = {
         f'sum({host("moonshine_frames_total", "frame_kind=\"key\"", sel + CLEAN)} and on (stream_key) {clean_switching(sel + CLEAN)})'
         f' / (sum({clean_switching(sel + CLEAN)}) > 0)'),
     # The client's model of a display presenting with V-Sync (moonlight-qt's default), on the clean streams.
-    "display_latency_median": lambda sel: f'1000 * histogram_quantile(0.5, sum({whole("moonshine_client_display_latency_seconds", sel + CLEAN + VSYNC)}))',
+    "display_latency_p99": lambda sel: f'1000 * histogram_quantile(0.99, sum({whole("moonshine_client_display_latency_seconds", sel + CLEAN + VSYNC)}))',
     "display_dropped": lambda sel: (
         f'100 * (sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC + ", shown=\"false\"")})'
         f' or 0 * sum({whole("moonshine_client_display_frames_total", sel + CLEAN + VSYNC)}))'
@@ -173,7 +173,7 @@ DECIMALS = {"keyframes_per_switch": 2, "display_dropped": 2, "display_judder": 2
 # What an empty tile means.
 NO_VALUE = {"freeze_p95": "no loss test", "recovered_without_keyframe": "no loss test", "click_median": "no click test",
             "keyframes_per_switch": "no HDR switch test", "load_fps": "no GPU-load test",
-            "display_latency_median": "no display model", "display_dropped": "no display model",
+            "display_latency_p99": "no display model", "display_dropped": "no display model",
             "display_judder": "no display model"}
 
 

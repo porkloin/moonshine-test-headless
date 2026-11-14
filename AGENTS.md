@@ -102,6 +102,8 @@ build with "was not used in the crate graph".
 | `--baseline` | also build hgaiser's default branches; the baseline streams the same battery (the report card's baseline column) and both builds stream timed streams for a speed comparison |
 | `--baseline-PROJECT REF` | baseline for that project (`moonshine`, `pixelforge`, `ferriscope`) instead of hgaiser's default branch (implies `--baseline`) |
 | `--iterations N` | timed streams per codec and build with `--baseline` (5) |
+| `--fresh-baseline` | stream the baseline again even when one is retained (see [Retained baselines](#retained-baselines)); the fresh one is kept in its place |
+| `--calibrate N` | instead of testing, stream the baseline's battery N times (2 or more), and retain it with how much each report card metric varied across the repeats. Pass the refs and options you'll test with: later `--baseline` runs with the same ones reuse it, and their report card gets a Change column judged against that variation |
 | `--chaos OPTIONS...` | gamestream-test-client options for each codec's second stream instead of `--loss-frame-every 120`: everything after `--chaos`, so it goes last, e.g. `--chaos --loss-bursty 2:8 --no-rfi`. The row is named after them |
 | `--no-traces` | don't record telemetry, so `summary.md` has only the checks (`--traces`, the default, is still accepted). What's recorded is under [Telemetry](#telemetry) |
 | `--tier NAME` | the battery's tier: `quick`, `standard` (default when no `--app`) or `full` |
@@ -121,6 +123,29 @@ build with "was not used in the crate graph".
 | `--strict` | exit 1 when a check failed, for CI |
 | `--log FILTER` | `MOONSHINE_LOG` for Moonshine and `RUST_LOG` for the GPU tests: a level or per-crate filter, e.g. `pixelforge=debug,ferriscope=trace` (info); at debug or trace the client logs the protocol too |
 | `--serve` | what the `serve` label passes |
+
+## Retained baselines
+
+A `--baseline` run keeps its baseline in the cache volume (`/cache/baselines/<key>/`): the run's telemetry (its
+`side="base"` streams), the baseline's benchmark results, `key.json`, `meta.json` (the run, when, the baseline's code,
+how many repeats) and, after `--calibrate`, `noise.json`. A later `--baseline` run whose every mode has one with the
+same key doesn't build or stream the baseline: the "Baseline" check says which it reused, the kept telemetry goes
+into the run's `logs/otlp` and the run's facts name its run (`baseline_run`), so the summary sets its `side="base"`
+streams beside the test build's (and so does the `:view` image's `summary` on the bundle; on the board, pick that run
+and `side=base` as B), and the speed comparison uses the kept benchmark results. The key is everything that changes what the baseline measures:
+its commits and `--baseline-moonshine-config`, the host's GPU, driver and kernel, the client machine (name, model,
+kernel) and its decoder, loopback or remote, the mode, `--seconds`, `--iterations`, the battery and tier, `--app` and
+`--app-command`, `--chaos`, `--hdr`, `--max-packet-size`, `--codecs`, and this image's and the client's versions. So
+a new commit on hgaiser's default branch, a Mesa or kernel update, or a new harness image streams it again. A baseline
+from a local checkout (uncommitted changes) is never kept, nor one whose streams or benchmarks failed. The 10 latest
+are kept.
+
+`--calibrate N` streams the baseline's battery N times (side `base`, then `base-2` to `base-N`, logs in
+`logs/baseline-N/`), keeps it with `noise.json` (each report card metric's value per repeat, their mean and spread:
+largest less smallest, from `moonshine-otel summary --side ... --noise-out`), and its summary sets the repeats side by
+side. Every later run with that key, reused or fresh, passes `--noise`: the report card's Change column gives test
+less baseline, within noise when no more than the spread, else better or worse. A fresh baseline replacing a
+calibrated one keeps its noise.
 
 ## Telemetry
 
@@ -278,6 +303,7 @@ non-zero exit shows as 125.
 | Path | |
 |---|---|
 | `summary.md` | for the pull request: hardware (host and client), the stream, the report card (the test runs board's tiles, from `test-runs-queries.json`), then the checks |
+| `noise.json` | with a calibrated baseline: how much each report card metric varied across its repeats, which the Change column is judged against (`moonshine-otel summary` reads it from the bundle) |
 | `versions.json` | the tools the run was made with (moonshine-test-headless, gamestream-test-client, moonshine-otel) and the commits of the code under test, by side and project |
 | `logs/summary.log` | `moonshine-otel summary` output |
 | `logs/run.log` | the terminal output |

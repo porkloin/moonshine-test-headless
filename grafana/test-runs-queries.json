@@ -25,8 +25,8 @@
       "decimals": 1
     },
     {
-      "key": "display_latency_median",
-      "expr": "1000 * histogram_quantile(0.5, sum(last_over_time(moonshine_client_display_latency_seconds{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range])))",
+      "key": "display_latency_p99",
+      "expr": "1000 * histogram_quantile(0.99, sum(last_over_time(moonshine_client_display_latency_seconds{{sel}, stream=\"clean\", mode=\"vsync\"}[$__range])))",
       "empty": "no display model",
       "decimals": 2
     },
