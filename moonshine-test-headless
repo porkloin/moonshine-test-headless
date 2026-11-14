@@ -1325,6 +1325,8 @@ stream_row() {
 		+ (if .picture_checked != null then "; picture: \(.picture_corrupt) corrupt of \(.picture_checked) checked"
 			+ (if .picture_unreadable > 0 then ", \(.picture_unreadable) unreadable" else "" end)
 			+ (if .picture_recovery_corrupt_max > 0 then ", corrupt \(.picture_recovery_corrupt_max) frames after a recovery" else "" end)
+			+ (if (.picture_wrong_size // 0) > 0 then ", decoded at \(.picture_decoded_width)x\(.picture_decoded_height) (the encoder'"'"'s padding rows, which clients show)" else "" end)
+			+ (if (.picture_skipped // 0) > 0 then ", \(.picture_skipped) unchecked" else "" end)
 			else "" end)' --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$2")
 	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
 		if .decode_errors + .corrupt > 0 then "pictures that didn'"'"'t decode" else empty end,
