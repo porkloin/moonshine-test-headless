@@ -62,16 +62,9 @@ moonshine-test-headless produces two ways to share your test results with others
    `results.tar.gz` with the view command above to browse every metric and trace from your run.
 
 > [!NOTE]
-> Results bundles can get large, and GitHub attachments are limited to 25 MB. Make a smaller copy with the same
-> summary:
->
-> ```sh
-> podman container runlabel compact ghcr.io/porkloin/moonshine-test-headless:view \
->   moonshine-test-<timestamp>-<refs>/results.tar.gz
-> ```
->
-> If that's still too big, add `--no-traces` to the end of the command. Be aware that `--no-traces` removes all
-> trace data from the bundle.
+> GitHub attachments are limited to 25 MB. When `results.tar.gz` is bigger, the run also writes
+> `results-compact.tar.gz` (the same summary from compacted telemetry), or `results-compact-no-traces.tar.gz` when
+> that's still too big, and says which one to attach.
 
 ### Compare two runs
 
@@ -98,8 +91,9 @@ By default moonshine-test-headless uses a local loopback client via
 network conditions and is unlikely to surface issues that come from network imperfections. Several techniques are
 available to test more realistic network conditions:
 
-1. **Loopback client with simulated chaos.** `--chaos` replaces the default packet loss (one frame in 120) on each
-   codec's packet-loss stream with any of gamestream-test-client's
+1. **Loopback client with simulated chaos.** By default only framestamp's full-motion workload gets a packet-loss
+   stream per codec (one frame in 120 lost); `--loss` adds one to every workload, or `--loss vkcube,gravitymark` to
+   those. `--chaos` replaces the default loss on those streams with any of gamestream-test-client's
    [behavior flags](https://github.com/porkloin/gamestream-test-client#stream-behavior-flags), such as Wi-Fi-style
    bursty loss and jitter. It goes last:
 
@@ -156,6 +150,7 @@ Put them after `--`.
   changes are bigger than run-to-run noise. Pass the same refs and options you'll test with
 - `--tier quick` or `--tier full`: fewer or more workloads. The standard and full tiers include framestamp, whose every
   frame the client draws again and compares, so corrupt pictures the decoder doesn't report fail the run
+- `--loss`: a packet-loss stream for every workload, not just framestamp (`--loss vkcube` for one)
 - `--iterations N`: timed streams per codec and build with `--baseline` (default 5)
 - `--mode 4k120`: stream resolution and frame rate (default `1080p60`)
 - `--help`: everything else, also documented in [AGENTS.md](AGENTS.md)

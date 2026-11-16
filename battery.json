@@ -40,14 +40,12 @@
         "wayland"
       ],
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
         "smoothness",
         "server_latency",
-        "loss_recovery",
         "bitrate"
       ],
       "baseline": true
@@ -93,13 +91,11 @@
         "--check-picture"
       ],
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
-        "picture",
-        "loss_recovery"
+        "picture"
       ],
       "baseline": true
     },
@@ -117,13 +113,11 @@
         "--check-picture"
       ],
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
-        "picture",
-        "loss_recovery"
+        "picture"
       ],
       "baseline": true
     },
@@ -136,14 +130,12 @@
         "-fullscreen"
       ],
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
         "smoothness",
         "server_latency",
-        "loss_recovery",
         "bitrate"
       ],
       "baseline": true
@@ -158,14 +150,12 @@
         "vblank_mode=0 exec /usr/bin/glxgears -fullscreen"
       ],
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
         "smoothness",
         "server_latency",
-        "loss_recovery",
         "bitrate"
       ],
       "baseline": true
@@ -188,14 +178,12 @@
       ],
       "log": true,
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
         "smoothness",
         "server_latency",
-        "loss_recovery",
         "bitrate"
       ],
       "baseline": true
@@ -215,13 +203,11 @@
       "log": true,
       "switch_every_s": 1,
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
-        "hdr_transitions",
-        "loss_recovery"
+        "hdr_transitions"
       ],
       "baseline": true
     },
@@ -273,15 +259,13 @@
         "@gravitymark"
       ],
       "streams": [
-        "clean",
-        "loss"
+        "clean"
       ],
       "measures": [
         "correctness",
         "load",
         "smoothness",
-        "server_latency",
-        "loss_recovery"
+        "server_latency"
       ],
       "baseline": true
     }

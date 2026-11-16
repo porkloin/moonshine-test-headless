@@ -5,7 +5,8 @@ podman flags, and how the repository is laid out. README.md is the short version
 
 ## Layout
 
-- `moonshine-test-headless`: the entrypoint, one bash script. `--help` prints its header.
+- `moonshine-test-headless`: the entrypoint, one bash script. Without arguments it prints the common runs and exits 0
+  (so runlabel adds no error of its own); `--help` prints its header, every option.
 - `battery.json`: the workloads, the measurements each is graded on, and the tiers (see Workloads).
 - `targets.json`: each report card metric's target and acceptable value, its unit and which way is better, what it
   measures and the basis for its numbers. The default for `--targets`. `"party": "client"` marks the client machine's
@@ -110,7 +111,8 @@ build with "was not used in the crate graph".
 | `--iterations N` | timed streams per codec and build with `--baseline` (5) |
 | `--fresh-baseline` | stream the baseline again even when one is retained (see [Retained baselines](#retained-baselines)); the fresh one is kept in its place |
 | `--calibrate N` | instead of testing, stream the baseline's battery N times (2 or more), and retain it with how much each report card metric varied across the repeats. Pass the refs and options you'll test with: later `--baseline` runs with the same ones reuse it, and their report card gets a Change column judged against that variation |
-| `--chaos OPTIONS...` | gamestream-test-client options for each codec's second stream instead of `--loss-frame-every 120`: everything after `--chaos`, so it goes last, e.g. `--chaos --loss-bursty 2:8 --no-rfi`. The row is named after them |
+| `--loss [LIST]` | a packet-loss stream after each codec's clean stream for every workload, or the comma-separated workload ids in LIST. Without it only the workloads whose `streams` have `loss` get one: in the built-in battery, framestamp-full, whose picture check sees whether recovery made the picture whole. In the retained baseline's key |
+| `--chaos OPTIONS...` | gamestream-test-client options for the packet-loss streams instead of `--loss-frame-every 120`: everything after `--chaos`, so it goes last, e.g. `--chaos --loss-bursty 2:8 --no-rfi`. The row is named after them. A run without packet-loss streams stops with an error |
 | `--no-traces` | don't record telemetry, so `summary.md` has only the checks (`--traces`, the default, is still accepted). What's recorded is under [Telemetry](#telemetry) |
 | `--tier NAME` | the battery's tier: `quick`, `standard` (default when no `--app`) or `full` |
 | `--app NAME` | a workload instead of a tier (repeatable): an id from the battery, `gravitymark:N` for N asteroids (1m by default) |
@@ -141,7 +143,7 @@ streams beside the test build's (and so does the `:view` image's `summary` on th
 and `side=base` as B), and the speed comparison uses the kept benchmark results. The key is everything that changes what the baseline measures:
 its commits and `--baseline-moonshine-config`, the host's GPU, driver and kernel, the client machine (name, model,
 kernel) and its decoder, loopback or remote, the mode, `--seconds`, `--iterations`, the battery and tier, `--app` and
-`--app-command`, `--chaos`, `--hdr`, `--max-packet-size`, `--codecs`, and this image's and the client's versions. So
+`--app-command`, `--loss`, `--chaos`, `--hdr`, `--max-packet-size`, `--codecs`, and this image's and the client's versions. So
 a new commit on hgaiser's default branch, a Mesa or kernel update, or a new harness image streams it again. A baseline
 from a local checkout (uncommitted changes) is never kept, nor one whose streams or benchmarks failed. The 10 latest
 are kept.
@@ -212,7 +214,7 @@ Moonshine's config gets an app per workload of the run, titled with its id. A wo
 | `load` | `low` or `high`, a label on its streams' metrics |
 | `warmup_s` | seconds from each stream's first frame that the client's metrics leave out (`moonshine-otel client --warmup`), for a workload that takes a while to start rendering: GravityMark loads for about 4 s at about a frame a second. Its spans are still sent, marked `warmup`; the check row counts the whole stream and says so. Default 0 |
 | `hdr` | always stream it in HDR |
-| `streams` | which streams per codec: `clean` (`--seconds`), `loss` (with `--loss-frame-every 120`, or `--chaos`), `click` (at least 60 s, clicking every 300 ms) |
+| `streams` | which streams per codec: `clean` (`--seconds`), `loss` (with `--loss-frame-every 120`, or `--chaos`), `click` (at least 30 s, clicking every 300 ms). Default `["clean"]`; `--loss` adds `loss` after `clean` |
 | `measures` | the measurements that apply to it, which streams it gets and which panels the test runs board gives its section (`grafana/generate.py`): `correctness`, `picture`, `smoothness`, `server_latency`, `loss_recovery`, `click_latency`, `hdr_transitions`, `load`, `bitrate` |
 | `client_args` | client options for its decoded streams, e.g. framestamp's `["--check-picture"]` (not its timed streams, which don't decode) |
 | `switch_every_s` | seconds between content switches, for `hdr_transitions` |
@@ -220,17 +222,17 @@ Moonshine's config gets an app per workload of the run, titled with its id. A wo
 
 | Id | Command | Streams | Where it comes from |
 |---|---|---|---|
-| `vkcube` | `vkcube --wsi wayland` (its 500×500 window, scaled up by ferriscope) | clean, loss | Arch's vulkan-tools |
-| `glxgears` | `glxgears -fullscreen` (under Xwayland) | clean, loss | Arch's mesa-utils |
-| `glxgears:no-vsync` | `vblank_mode=0 glxgears -fullscreen` (under Xwayland) | clean, loss | the same, presenting with swap interval 0 instead of vsync |
-| `hdrneon` | `hdrneon --fullscreen --mode sdr` (`hdr10` with `--hdr`) | clean, loss | its latest GitHub release, checked against `SHA256SUMS` at image build |
-| `hdrneon-cycle` | `hdrneon --fullscreen --mode hdr10 --cycle 1`, always HDR | clean, loss | the same |
+| `vkcube` | `vkcube --wsi wayland` (its 500×500 window, scaled up by ferriscope) | clean | Arch's vulkan-tools |
+| `glxgears` | `glxgears -fullscreen` (under Xwayland) | clean | Arch's mesa-utils |
+| `glxgears:no-vsync` | `vblank_mode=0 glxgears -fullscreen` (under Xwayland) | clean | the same, presenting with swap interval 0 instead of vsync |
+| `hdrneon` | `hdrneon --fullscreen --mode sdr` (`hdr10` with `--hdr`) | clean | its latest GitHub release, checked against `SHA256SUMS` at image build |
+| `hdrneon-cycle` | `hdrneon --fullscreen --mode hdr10 --cycle 1`, always HDR | clean | the same |
 | `clickflash` | `clickflash --fullscreen` | click | the same |
 | `framestamp-full` | `framestamp --fullscreen --mode full`, the client checking every frame (`--check-picture`) | clean, loss | the release pinned as `FRAMESTAMP_VERSION` at the top of the Containerfile, checked against its `SHA256SUMS` (pinned, not latest: the client's check draws that release's picture) |
-| `framestamp-static` | the same, `--mode static`: only the stamp changes | clean, loss | the same |
-| `framestamp-region` | the same, `--mode region`: one sprite over a still background | clean, loss | the same |
+| `framestamp-static` | the same, `--mode static`: only the stamp changes | clean | the same |
+| `framestamp-region` | the same, `--mode region`: one sprite over a still background | clean | the same |
 | `clickflash:no-vsync` | `clickflash --fullscreen --no-vsync --flash-ms 34` | click | the same, presenting with mailbox or immediate instead of FIFO; each flash stays up 34 ms so the compositor catches it |
-| `gravitymark[:N]` | `GravityMark.x64 -vulkan -fullscreen 1 -width $MOONSHINE_CLIENT_WIDTH -height $MOONSHINE_CLIENT_HEIGHT -vsync 0 -asteroids N -nosensors 1 -fps 0 -info 0` (Moonshine sets those to the stream's size) | clean, loss | downloaded at run time, see below |
+| `gravitymark[:N]` | `GravityMark.x64 -vulkan -fullscreen 1 -width $MOONSHINE_CLIENT_WIDTH -height $MOONSHINE_CLIENT_HEIGHT -vsync 0 -asteroids N -nosensors 1 -fps 0 -info 0` (Moonshine sets those to the stream's size) | clean | downloaded at run time, see below |
 
 Tiers: `quick` = vkcube; `standard` = vkcube, framestamp-full, hdrneon-cycle, clickflash; `full` = standard +
 framestamp-static, framestamp-region, gravitymark.
@@ -267,12 +269,18 @@ In order; a failed build stops the run.
 | `<workload>: <codec> HDR` failing with "asked for HDR, Moonshine streamed SDR" | an HDR workload with the statistics socket: the stream moonshine-otel recorded wasn't HDR |
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
 | `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. Frozen half the stream because of the client, though (it asked for keyframes itself, its decode queue overflowing or its decoder failing a frame, or its decode p99 is over the frame interval) is the row's `client` result, not FAIL: the host isn't failed for the client machine's trouble, and a baseline with such a row isn't kept. On framestamp's streams (`--check-picture`) it also fails for corrupt pictures with nothing lost (the encoder's), corruption lasting past the frame after a recovery frame or keyframe (recovery not making the picture whole), or most stamps unreadable (the picture isn't framestamp's at the stream's size), and the notes add how many were corrupt. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames; and then the client's own trouble: keyframes it asked for itself (by why) and "client-limited" when its decode p99 is over the frame interval. What a display would show (the client's model of moonlight-qt's presenting) is on the report card and the board, not here. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
-| `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 60 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
+| `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 30 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
 | Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
 | Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict). An ok row counts the report's other verdicts ("no regression; 9 improved, 4 changed") |
 
-The exit code is 0 when the run finished, whatever its checks say, and 2 for usage errors or no GPU. With `--strict`, a failed check makes it 1. Through `runlabel`, a
+The exit code is 0 when the run finished, whatever its checks say, or when there was nothing to test (no arguments), and 2 for usage errors or no GPU. With `--strict`, a failed check makes it 1. Through `runlabel`, a
 non-zero exit shows as 125.
+
+On a terminal (and without `NO_COLOR`), section headings and results are colored: ok green, FAIL red, the rest
+yellow. Each stream is one line under its workload's heading: frame rate, missing frames, keyframes and seconds
+frozen in columns, then RFI requests and recovery frames, framestamp's corrupt pictures and the client's own trouble;
+a failed one starts with why. A dim progress line names the stream running until its line replaces it. summary.md's
+notes are the full sentences, and `logs/run.log` is the terminal's output without color or progress lines.
 
 ## How a run goes
 
@@ -302,8 +310,8 @@ non-zero exit shows as 125.
      checks as Markdown>` with the image's Prometheus (`/usr/local/bin/prometheus`) for `summary.md`. Each mode is a
      run of its own (` · <mode>` on the run name with more than one). Without telemetry, moonshine-otel or a recorded
      stream, `summary.md` is the checks only and says why.
-9. With more than one mode, the top `summary.md` is each mode's in turn. Then the tarball, whatever happened, and the
-   paths of `summary.md` and `results.tar.gz` with how to add them to a pull request.
+9. With more than one mode, the top `summary.md` is each mode's in turn. Then the tarball, whatever happened (and its
+   compacted copy when it's over 25 MB), and a footer naming `summary.md`, the bundle to attach and the `:view` command.
 
 ## Results
 
@@ -317,7 +325,7 @@ non-zero exit shows as 125.
 | `noise.json` | with a calibrated baseline: how much each report card metric varied across its repeats, which the Change column is judged against (`moonshine-otel summary` reads it from the bundle) |
 | `versions.json` | the tools the run was made with (moonshine-test-headless, gamestream-test-client, moonshine-otel) and the commits of the code under test, by side and project |
 | `logs/summary.log` | `moonshine-otel summary` output |
-| `logs/run.log` | the terminal output |
+| `logs/run.log` | the terminal output, without color or progress lines |
 | `logs/vulkaninfo.txt` | `vulkaninfo --summary` |
 | `logs/fetch-<side>-<project>.log` | fetch output |
 | `logs/<project>-gpu-tests.log` | cargo test output |
@@ -331,6 +339,7 @@ non-zero exit shows as 125.
 | `logs/bench/compare-<workload>-<codec>.md` | the comparison |
 | `logs/otlp/` | OTLP batches, the run's telemetry: what `summary.md` is made from (`moonshine-otel summary results.tar.gz` makes it again), what the `:view` image loads (see Exploring a run) |
 | `results.tar.gz` | everything above, the bundle to attach to the pull request |
+| `results-compact.tar.gz` or `results-compact-no-traces.tar.gz` | when `results.tar.gz` is over GitHub's 25 MB: the same with compacted telemetry, or, when that's still over, without traces too (see Exploring a run). The footer names it |
 
 The client's JSON fields are `frames`, `seconds`, `fps`, `idr`, `missing`, `decode_errors`, `corrupt`, `stalls`,
 `stalled_ms`, `interval_ms_p50/p95/p99/max`, `video_packets`, `dropped_packets`, `dropped_frames`, `seed`,
@@ -409,8 +418,8 @@ with the same `summary.md`. Traces are kept as they are, unless `--no-traces` is
 are left out of the compacted spool and it's written as `NAME-compact-no-traces.tar.gz`. Traces are most of a run's
 telemetry (323 of 349 MB compacted, in a full `--baseline` 4k120 run), and the summary reads only metrics, so this
 gets such a run under 25 MB (about 17 MB) with the same report card; Grafana then has no traces to show. Either way,
-the script prints the next step when the copy is still over 25 MB. The harness keeps the full bundle, and prints the
-command (and the `--no-traces` hint) when it's over 25 MB.
+the script prints the next step when the copy is still over 25 MB. The harness makes the same copies itself (with
+the moonshine-otel it built) when `results.tar.gz` is over 25 MB, and keeps the full bundle.
 
 Old data needs settings the long-running stacks don't have: Prometheus takes samples out of order within 365 days
 and keeps them for 100 years (retention counts from the newest sample); Tempo dates blocks by their spans
