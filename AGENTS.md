@@ -106,11 +106,12 @@ build with "was not used in the crate graph".
 | `--seconds N` | length of each stream, and of each `--baseline` stream after 2 s of warmup (20) |
 | `--codecs LIST` | comma-separated subset of `h264,hevc,av1` (default: all Moonshine offers on the GPU) |
 | `--no-stream` | only the GPU tests |
-| `--baseline` | also build hgaiser's default branches; the baseline streams the same battery (the report card's baseline column) and both builds stream timed streams for a speed comparison |
+| `--baseline` | the full comparison: a kept baseline for the run's options is reused, else hgaiser's default branches are built and stream the same battery (the report card's baseline column) and are kept; and both builds stream timed streams for a speed comparison. Without it a run still compares with a kept baseline when there is one (see [Retained baselines](#retained-baselines)) |
 | `--baseline-PROJECT REF` | baseline for that project (`moonshine`, `pixelforge`, `ferriscope`) instead of hgaiser's default branch (implies `--baseline`) |
 | `--iterations N` | timed streams per codec and build with `--baseline` (5) |
+| `--no-baseline` | don't compare, not even with a kept baseline |
 | `--fresh-baseline` | stream the baseline again even when one is retained (see [Retained baselines](#retained-baselines)); the fresh one is kept in its place |
-| `--calibrate N` | instead of testing, stream the baseline's battery N times (2 or more), and retain it with how much each report card metric varied across the repeats. Pass the refs and options you'll test with: later `--baseline` runs with the same ones reuse it, and their report card gets a Change column judged against that variation |
+| `--calibrate N` | instead of testing, stream the baseline's battery N times (2 or more), and keep it with how much each report card metric varied across the repeats (no timed streams). Pass the options you'll test with: later runs with the same ones compare with it, and their report card gets a Change column judged against that variation. Later baselines for the same setup keep the variation, so it's once per setup |
 | `--loss [LIST]` | a packet-loss stream after each codec's clean stream for every workload, or the comma-separated workload ids in LIST. Without it only the workloads whose `streams` have `loss` get one: in the built-in battery, framestamp-full, whose picture check sees whether recovery made the picture whole. In the retained baseline's key |
 | `--chaos OPTIONS...` | gamestream-test-client options for the packet-loss streams instead of `--loss-frame-every 120`: everything after `--chaos`, so it goes last, e.g. `--chaos --loss-bursty 2:8 --no-rfi`. The row is named after them. A run without packet-loss streams stops with an error |
 | `--no-traces` | don't record telemetry, so `summary.md` has only the checks (`--traces`, the default, is still accepted). What's recorded is under [Telemetry](#telemetry) |
@@ -134,26 +135,42 @@ build with "was not used in the crate graph".
 
 ## Retained baselines
 
-A `--baseline` run keeps its baseline in the cache volume (`/cache/baselines/<key>/`): the run's telemetry (its
-`side="base"` streams), the baseline's benchmark results, `key.json`, `meta.json` (the run, when, the baseline's code,
-how many repeats) and, after `--calibrate`, `noise.json`. A later `--baseline` run whose every mode has one with the
-same key doesn't build or stream the baseline: the "Baseline" check says which it reused, the kept telemetry goes
-into the run's `logs/otlp` and the run's facts name its run (`baseline_run`), so the summary sets its `side="base"`
-streams beside the test build's (and so does the `:view` image's `summary` on the bundle; on the board, pick that run
-and `side=base` as B), and the speed comparison uses the kept benchmark results. The key is everything that changes what the baseline measures:
-its commits and `--baseline-moonshine-config`, the host's GPU, driver and kernel, the client machine (name, model,
-kernel) and its decoder, loopback or remote, the mode, `--seconds`, `--iterations`, the battery and tier, `--app` and
-`--app-command`, `--loss`, `--chaos`, `--hdr`, `--max-packet-size`, `--codecs`, and this image's and the client's versions. So
-a new commit on hgaiser's default branch, a Mesa or kernel update, or a new harness image streams it again. A baseline
-from a local checkout (uncommitted changes) is never kept, nor one whose streams or benchmarks failed. The 10 latest
-are kept.
+A baseline that streamed is kept in the cache volume (`/cache/baselines/<key>/`): the run's telemetry (its
+`side="base"` streams), the baseline's timed streams when it had them, `key.json`, `meta.json` (the run, when, the
+baseline's code, how many repeats, and `noise_from`, the calibration its noise came from) and `noise.json`.
+
+Every run that compares looks for one with its key, in every mode:
+
+- Without `--baseline` (and without `--no-baseline`, `--no-stream` or `--serve`), the baseline's refs are fetched to
+  work the key out. With one kept, the report card compares with it at no cost: nothing builds or streams for it.
+  Without one, the run tests alone, and the "Baseline" check says why: none kept for these machines and options, or
+  the one kept for this setup is out of date and how (`moonshine ec162f96dfa4 → 1a2b3c4d5e6f`, `host driver ... →
+  ...`). The fetch failing drops the comparison too.
+- With `--baseline`, a kept one is reused the same way, and the test build's timed streams compare with its kept ones.
+  A kept baseline without them (a calibration keeps none) gets them from the baseline build this once. Without one
+  kept, the baseline builds and streams the battery, and is kept.
+
+Reused, the "Baseline" check says which, the kept telemetry goes into the run's `logs/otlp` and the run's facts name
+its run (`baseline_run`), so the summary sets its `side="base"` streams beside the test build's (and so does the
+`:view` image's `summary` on the bundle; on the board, pick that run and `side=base` as B).
+
+The key has two parts. `setup`: what decides how much the numbers vary run to run: the host's GPU, the client machine
+(name, model) and its decoder, loopback or remote, the mode, `--seconds`, `--iterations`, the battery and tier,
+`--app` and `--app-command`, `--loss`, `--chaos`, `--hdr`, `--max-packet-size`, `--codecs` and
+`--baseline-moonshine-config`. `versions`: what makes the numbers themselves differ: the baseline's commits, the host's
+driver and kernel, the client's kernel and decoder driver, and this image's and the client's versions. So a new commit
+on hgaiser's default branch, a Mesa or kernel update, or a new harness image needs a new baseline. A baseline from a
+local checkout (uncommitted changes) is never kept, nor one whose streams or timed streams failed. The 10 latest are
+kept.
 
 `--calibrate N` streams the baseline's battery N times (side `base`, then `base-2` to `base-N`, logs in
 `logs/baseline-N/`), keeps it with `noise.json` (each report card metric's value per repeat, their mean and spread:
 largest less smallest, from `moonshine-otel summary --side ... --noise-out`), and its summary sets the repeats side by
-side. Every later run with that key, reused or fresh, passes `--noise`: the report card's Change column gives test
-less baseline, within noise when no more than the spread, else better or worse. A fresh baseline replacing a
-calibrated one keeps its noise.
+side. Runs that compare pass `--noise`: the report card's Change column gives test less baseline, within noise when
+no more than the spread, else better or worse. The noise is the kept baseline's, else the newest kept for the same
+`setup`, which a new baseline keeps as its own: how much a setup's numbers vary doesn't change with a driver or a
+commit, so a setup is calibrated once, and a version change costs one baseline, streamed by the next `--baseline`.
+The "Baseline" check names where the noise came from.
 
 ## Telemetry
 
@@ -270,6 +287,8 @@ In order; a failed build stops the run.
 | `<workload>: <codec>` failing with "asked for WxH@FPS at K kb/s, Moonshine streamed ..." | with the statistics socket: the stream moonshine-otel recorded (`runs[0].config` width, height, target_fps, bitrate) isn't the mode asked for |
 | `<workload>: <codec>`, and `<workload>: <codec>, packet loss` | the client streamed (exit 0), got frames, saw no decode errors or corrupt frames, and wasn't frozen (gaps of over three frame intervals, the client's `stalls`) for half the stream or more. A failed row starts with why. Frozen half the stream because of the client, though (it asked for keyframes itself, its decode queue overflowing or its decoder failing a frame, or its decode p99 is over the frame interval) is the row's `client` result, not FAIL: the host isn't failed for the client machine's trouble, and a baseline with such a row isn't kept. On framestamp's streams (`--check-picture`) it also fails for corrupt pictures with nothing lost (the encoder's), corruption lasting past the frame after a recovery frame or keyframe (recovery not making the picture whole), or most stamps unreadable (the picture isn't framestamp's at the stream's size), and the notes add how many were corrupt. The notes give frames, missing frames, keyframes, freezes and seconds frozen; on packet-loss streams also RFI requests and recovery frames; and then the client's own trouble: keyframes it asked for itself (by why) and "client-limited" when its decode p99 is over the frame interval. What a display would show (the client's model of moonlight-qt's presenting) is on the report card and the board, not here. "packet loss" drops every packet of one frame in 120 by frame number (`--loss-frame-every 120`), the same frames on both builds; its notes start with how many frames were dropped on purpose |
 | `<workload>: <codec>, clicks` (, baseline) | a click stream: at least 30 s (`--seconds` if longer) clicking every 300 ms (`--click-every 300`); ok when at least nine clicks in ten flashed and every picture decoded; a p95 over three times the median is called out ("slow tail") with the missing frames |
+| Baseline | without `--baseline`: `ok` naming the kept baseline compared with (and its noise's calibration), or `skipped` saying why there's none |
+| Calibration | with `--calibrate`: `ok` when the baseline was kept with its noise |
 | Speed vs baseline | with `--baseline`: skipped when either Moonshine has no statistics socket (the baseline's battery streams still run) |
 | Benchmark (baseline) Moonshine, `<workload>`, `<codec>` / `<workload>: speed <codec> vs baseline` | with `--baseline`, per comparing workload that's timed: N streams of `--seconds` + 2 s per codec from each build (`--decode none`, nothing dropped), recorded by `watch`, then `moonshine-otel compare`: exit 0 ok, 1 FAIL (slower), 2 skipped (no verdict). An ok row counts the report's other verdicts ("no regression; 9 improved, 4 changed") |
 
@@ -291,7 +310,7 @@ notes are the full sentences, and `logs/run.log` is the terminal's output withou
 4. GPU tests for the pixelforge and ferriscope refs.
 5. Build Moonshine with the patched dependencies.
 6. Build moonshine-otel (its own build, unpatched: it only reads Moonshine's statistics socket).
-7. With `--baseline`: build the baseline Moonshine.
+7. With a baseline to stream (none kept), or timed streams it hasn't kept: build the baseline Moonshine.
 8. Per mode (`mout`, `mlogs`, `mwork`: the run's folder, its `logs/` and `/work` with one mode; a folder per mode and
    `/work/<mode>` with more):
    - Start the Moonshine under test with a config that has an app per workload, plus

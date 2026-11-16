@@ -144,10 +144,12 @@ Put them after `--`.
   - `someone@my-branch`: a branch, tag or commit of someone's fork
   - a GitHub link
   - `./pixelforge`: your checkout in the current folder, uncommitted changes included
-- `--baseline`: compare against hgaiser's default branches. The baseline is kept, and the next run with the same
-  options and machines reuses it instead of building and streaming it again (`--fresh-baseline` to redo it)
-- `--calibrate 3`: stream the baseline three times instead of testing, so later `--baseline` runs can say which
-  changes are bigger than run-to-run noise. Pass the same refs and options you'll test with
+- `--baseline`: compare against hgaiser's default branches, timing both builds too. The baseline is kept, and every
+  later run with the same options and machines compares with it without streaming it again, `--baseline` or not
+  (`--fresh-baseline` redoes it, `--no-baseline` skips the comparison)
+- `--calibrate 3`: stream the baseline three times instead of testing, so later runs can say which changes are bigger
+  than run-to-run noise. Pass the options you'll test with. Once per setup: after a driver or Moonshine update,
+  `--baseline` streams a new baseline and keeps the noise
 - `--tier quick` or `--tier full`: fewer or more workloads. The standard and full tiers include framestamp, whose every
   frame the client draws again and compares, so corrupt pictures the decoder doesn't report fail the run
 - `--loss`: a packet-loss stream for every workload, not just framestamp (`--loss vkcube` for one)
