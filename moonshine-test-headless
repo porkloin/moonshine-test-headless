@@ -1356,7 +1356,7 @@ stream_row() {
 		+ (if .picture_checked != null then "; picture: \(.picture_corrupt) corrupt of \(.picture_checked) checked"
 			+ (if .picture_unreadable > 0 then ", \(.picture_unreadable) unreadable" else "" end)
 			+ (if .picture_recovery_corrupt_max > 0 then ", corrupt \(.picture_recovery_corrupt_max) frames after a recovery" else "" end)
-			+ (if (.picture_wrong_size // 0) > 0 then ", decoded at \(.picture_decoded_width)x\(.picture_decoded_height) (the encoder'"'"'s padding rows, which clients show)" else "" end)
+			+ (if (.picture_wrong_size // 0) > 0 then ", decoded at \(.picture_decoded_width)x\(.picture_decoded_height) (rows the encoder padded, which clients also show)" else "" end)
 			+ (if (.picture_skipped // 0) > 0 then ", \(.picture_skipped) unchecked" else "" end)
 			else "" end)' --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$2")
 	why=$(jq -r '[if .frames == 0 then "no frames" else empty end,
@@ -1372,7 +1372,7 @@ stream_row() {
 	# host's failure: the row says so instead of failing.
 	if [ -n "$why" ] && [ "$why" = "frozen half the stream or more" ] &&
 		[ "$(jq --argjson interval "$(awk -v f="$mfps" 'BEGIN {print 1000 / f}')" "$client_jq"' client_kf > 0 or limited' "$2")" = true ]; then
-		result=client notes="$why, the client's doing: $notes"
+		result=client notes="$why, caused by the client: $notes"
 	elif [ -n "$why" ]; then
 		result=FAIL notes="$why: $notes"
 	fi
@@ -1552,7 +1552,7 @@ compare_builds() {
 			"$watcher" compare "$b" "$t" --format markdown > "$md" 2>&1 || status=$?
 			case $status in
 			0) verdict="no regression$(verdict_counts "$md")" result=ok ;;
-			1) verdict="slower" result=FAIL ;;
+			1) verdict="slower$(verdict_counts "$md")" result=FAIL ;;
 			*) verdict="no verdict" result=skipped ;;
 			esac
 			row "${wl_title[$w]}: speed $codec vs baseline" $result "$verdict (${md#"$out"/})"
