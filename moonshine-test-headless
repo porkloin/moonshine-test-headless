@@ -1450,6 +1450,7 @@ battery_streams() {
 					continue
 				fi
 				if [ $run = click ]; then click_row "$name" "$f.json" "$label"; else stream_row "$name" "$f.json" "${wl_warmup[$w]}" "$label"; fi
+				stream_row_index=$((${#rows[@]} - 1))
 				sj="" sf=""
 				if [ -n "$watcher" ] && json=$(new_result "$srv" "$before"); then
 					sj=$ldir/timing/$(file "$w")-$codec-$run.json sf=${sj%.json}.frames.csv
@@ -1459,10 +1460,19 @@ battery_streams() {
 					if [ "$whdr" = 1 ] && [ "$(jq '.runs[0].config.hdr' "$sj")" != true ]; then
 						row "$name" FAIL "asked for HDR, Moonshine streamed SDR" "$label"
 					fi
-					# And the mode: a report about 1080p60 that streamed something else would mislead.
+					# And the mode: a report about 1080p60 that streamed something else would mislead. The bitrate
+					# can be lower: a Moonshine that fits FEC, audio and packet overhead inside the client's bitrate,
+					# as Sunshine does, encodes video below it, down to about a seventh of it with 80% FEC. Less
+					# than a tenth isn't that.
 					got=$(jq -r '.runs[0].config | "\(.width)x\(.height)@\(.target_fps) \(.bitrate / 1000 | floor)"' "$sj")
-					[ "$got" = "$mlabel $mkbps" ] ||
-						row "$name" FAIL "asked for $mlabel at $mkbps kb/s, Moonshine streamed ${got% *} at ${got#* } kb/s" "$label"
+					kbps=${got#* }
+					if [ "${got% *}" != "$mlabel" ] || ! [ "$kbps" -le "$mkbps" ] 2> /dev/null ||
+						[ "$((kbps * 10))" -lt "$mkbps" ]; then
+						row "$name" FAIL "asked for $mlabel at $mkbps kb/s, Moonshine streamed ${got% *} at $kbps kb/s" "$label"
+					elif [ "$kbps" -lt "$mkbps" ]; then
+						# Say so on the stream's row.
+						rows[stream_row_index]+="; video encoded at $kbps of the $mkbps kb/s asked for"
+					fi
 				fi
 			done
 		done
