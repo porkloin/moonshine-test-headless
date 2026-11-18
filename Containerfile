@@ -11,7 +11,7 @@
 # at run time (view/Containerfile pins the same release); and a framestamp release, whose picture the client's
 # --check-picture draws again, so the two move together.
 ARG GAMESTREAM_TEST_CLIENT_COMMIT=e0a987a
-ARG MOONSHINE_OTEL_VERSION=v1.4.0
+ARG MOONSHINE_OTEL_VERSION=v1.4.1
 ARG FRAMESTAMP_VERSION=v0.1.0
 
 FROM docker.io/library/archlinux:latest
